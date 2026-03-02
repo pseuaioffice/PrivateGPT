@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+
+# Environment
+.env
+
+# ChromaDB data
+chroma_db/
+
+# Uploaded documents (optional — remove this if you want to commit them)
+documents/*.pdf
+documents/*.docx

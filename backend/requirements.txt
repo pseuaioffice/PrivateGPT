@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+langchain
+langchain-community
+langchain-chroma
+langchain-huggingface
+chromadb
+huggingface_hub
+python-dotenv
+python-multipart
+pypdf
+docx2txt
+watchdog
