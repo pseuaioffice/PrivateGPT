@@ -114,11 +114,11 @@
 
     /* Sidebar header */
     .sidebar-brand {
-      height: var(--header-h);
       display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 0 20px;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 24px 20px;
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
@@ -144,6 +144,16 @@
       font-weight: 700;
       color: var(--text);
       letter-spacing: -.3px;
+    }
+
+    .brand-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 99px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border: 1px solid var(--border);
     }
 
     .brand-badge.admin {
@@ -221,7 +231,7 @@
 
     .monitor-section {
       display: grid;
-      grid-template-columns: 2fr 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       gap: 24px;
     }
 
@@ -596,8 +606,9 @@
 
     /* Sidebar footer */
     .sidebar-footer {
-      padding: 12px;
+      padding: 16px;
       border-top: 1px solid var(--border);
+      margin-top: auto;
       flex-shrink: 0;
     }
 
@@ -1477,7 +1488,6 @@
 
     <div class="sidebar-brand">
       <div class="brand-logo">
-        <!-- Logo: neural-ish icon -->
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"
           stroke-linejoin="round">
           <circle cx="12" cy="4" r="2" />
@@ -1487,33 +1497,37 @@
           <line x1="12" y1="6" x2="20" y2="18" />
           <line x1="4" y1="18" x2="20" y2="18" />
         </svg>
-        <span class="brand-name">PrivateGPT</span>
-        <span class="brand-badge admin">Administrator</span>
       </div>
-      <div class="sidebar-body">
+      <span class="brand-name">PrivateGPT</span>
+      <span class="brand-badge admin">Administrator</span>
+    </div>
 
-        <!-- Admin Navigation -->
-        <div class="sidebar-section">
-          <div class="sidebar-section-label">Administration</div>
-          <div class="admin-menu">
-            <div class="admin-menu-item active" id="menu-dash" onclick="showView('dash')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <rect x="3" y="3" width="7" height="7" />
-                <rect x="14" y="3" width="7" height="7" />
-                <rect x="14" y="14" width="7" height="7" />
-                <rect x="3" y="14" width="7" height="7" />
-              </svg>
-              Dashboard
-            </div>
-            <div class="admin-menu-item" id="menu-chat" onclick="showView('chat')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              Live Chat
-            </div>
+    <div class="sidebar-body">
+
+      <!-- Sidebar Navigation (Always Visible) -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Navigation</div>
+        <div class="admin-menu">
+          <div class="admin-menu-item active" id="menu-dash" onclick="showView('dash')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="3" y="3" width="7" height="7" />
+              <rect x="14" y="3" width="7" height="7" />
+              <rect x="14" y="14" width="7" height="7" />
+              <rect x="3" y="14" width="7" height="7" />
+            </svg>
+            Admin Dashboard
+          </div>
+          <div class="admin-menu-item" id="menu-chat" onclick="showView('chat')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Knowledge Assistant
           </div>
         </div>
+      </div>
 
+      <!-- Chat-Specific Sidebar Content -->
+      <div id="sidebar-chat-content" style="display:none; flex: 1; flex-direction: column; overflow: hidden;">
         <!-- New conversation -->
         <div id="new-chat-container">
           <button class="new-chat-btn" id="new-chat-btn">
@@ -1538,31 +1552,13 @@
             <div class="doc-empty">Loading…</div>
           </div>
         </div>
+      </div>
 
-        <!-- Retrieval Settings -->
-        <div class="sidebar-section">
-          <div class="sidebar-section-label">Retrieval Settings</div>
-          <div class="status-widget">
-            <div class="status-row">
-              <span class="status-key">Context Depth (k)</span>
-              <span class="status-val" id="k-val">15</span>
-            </div>
-            <div style="padding: 10px 14px;">
-              <input type="range" id="k-slider" min="1" max="40" value="15" step="1"
-                style="width: 100%; accent-color: var(--brand-500); cursor: pointer;"
-                oninput="document.getElementById('k-val').textContent = this.value">
-              <div
-                style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-3); margin-top: 4px;">
-                <span>Speed (1)</span>
-                <span>Deep Analysis (40)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
+      <!-- System Settings (Shared or Admin) -->
+      <div id="sidebar-settings-content">
         <!-- System status -->
         <div class="sidebar-section">
-          <div class="sidebar-section-label">System Status</div>
+          <div class="sidebar-section-label">System Health</div>
           <div class="status-widget">
             <div class="status-row">
               <span class="status-key">API Connection</span>
@@ -1584,52 +1580,44 @@
             </div>
           </div>
         </div>
-
-        <!-- Upload -->
-        <div class="sidebar-section" id="docs-section">
-          <div class="sidebar-section-label">Upload Document</div>
-          <div class="upload-zone" id="upload-zone">
-            <div class="upload-icon-wrap">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
-                stroke-linejoin="round">
-                <polyline points="16 16 12 12 8 16" />
-                <line x1="12" y1="12" x2="12" y2="21" />
-                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
-              </svg>
-            </div>
-            <div class="upload-title">Drop files here</div>
-            <div class="upload-sub">PDF · DOCX · TXT · MD · CSV</div>
-            <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md,.csv" />
-            <div class="progress-bar-wrap" id="prog-wrap">
-              <div class="progress-bar-fill" id="prog-bar"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Indexed files -->
-        <div class="sidebar-section" style="overflow:hidden">
-          <div class="sidebar-section-label" style="display:flex;justify-content:space-between;align-items:center">
-            <span>Indexed Files</span>
-            <span style="font-size:10px;font-weight:500;color:var(--text-3)" id="doc-count-label"></span>
-          </div>
-          <div class="doc-list" id="doc-list">
-            <div class="doc-empty">Loading documents…</div>
-          </div>
-        </div>
-
-      </div><!-- /sidebar-body -->
-
-      <div class="sidebar-footer">
-        <button class="clear-chat-btn" id="clear-btn">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14H6L5 6" />
-            <path d="M10 11v6M14 11v6" />
-          </svg>
-          Clear conversation
-        </button>
       </div>
+
+      <!-- Retrieval Settings (Only in Chat mode) -->
+      <div id="sidebar-retrieval-settings" style="display:none">
+        <div class="sidebar-section">
+          <div class="sidebar-section-label">Retrieval Settings</div>
+          <div class="status-widget">
+            <div class="status-row">
+              <span class="status-key">Context Depth (k)</span>
+              <span class="status-val" id="k-val">15</span>
+            </div>
+            <div style="padding: 10px 14px;">
+              <input type="range" id="k-slider" min="1" max="40" value="15" step="1"
+                style="width: 100%; accent-color: var(--brand-500); cursor: pointer;"
+                oninput="document.getElementById('k-val').textContent = this.value">
+              <div
+                style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-3); margin-top: 4px;">
+                <span>Speed (1)</span>
+                <span>Deep Analysis (40)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /sidebar-body -->
+
+    <div class="sidebar-footer">
+      <button class="clear-chat-btn" id="clear-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round">
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14H6L5 6" />
+          <path d="M10 11v6M14 11v6" />
+        </svg>
+        Clear conversation
+      </button>
+    </div>
 
   </aside>
 
@@ -1640,7 +1628,9 @@
     <!-- Topbar -->
     <div class="topbar">
       <div class="topbar-breadcrumb">
-        <span class="bc-item">Admin Dashboard</span>
+        <span class="bc-item">PrivateGPT</span>
+        <span class="bc-sep">/</span>
+        <span class="bc-item active" id="breadcrumb-view">Admin Dashboard</span>
       </div>
 
       <div class="topbar-right">
@@ -1765,48 +1755,57 @@
       </div>
 
       <div class="monitor-section">
+        <!-- New Knowledge Management Panel in Dashboard -->
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">System Status Monitoring</div>
-            <span class="brand-badge" id="dash-status-badge">Live</span>
+            <div class="panel-title">Knowledge Management</div>
+            <span style="font-size:10px;font-weight:500;color:var(--text-3)" id="doc-count-label"></span>
           </div>
-          <div class="panel-body">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-              <div class="status-widget">
-                <div class="status-row"><span class="status-key">API Engine</span><span
-                    class="status-val online">Online</span></div>
-                <div class="status-row"><span class="status-key">Chat DB</span><span class="status-val"
-                    id="dash-db-val">—</span></div>
-                <div class="status-row"><span class="status-key">Uptime</span><span class="status-val">Continuous</span>
-                </div>
+          <div class="panel-body" style="display:flex; flex-direction:column; gap:20px;">
+            <!-- Integrated Upload -->
+            <div class="upload-zone" id="upload-zone" style="padding: 20px;">
+              <div class="upload-icon-wrap" style="width:36px; height:36px;"><svg viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="1.8">
+                  <polyline points="16 16 12 12 8 16" />
+                  <line x1="12" y1="12" x2="12" y2="21" />
+                  <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
+                </svg></div>
+              <div class="upload-title" style="font-size:13px">Click to upload new knowledge</div>
+              <div class="upload-sub" style="font-size:10px">PDF, DOCX, TXT supported</div>
+              <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md,.csv" />
+              <div class="progress-bar-wrap" id="prog-wrap">
+                <div class="progress-bar-fill" id="prog-bar"></div>
               </div>
-              <div class="status-widget">
-                <div class="status-row"><span class="status-key">Memory Usage</span><span
-                    class="status-val">Optimized</span></div>
-                <div class="status-row"><span class="status-key">Security</span><span class="status-val"
-                    style="color:var(--success)">Enterprise</span></div>
-                <div class="status-row"><span class="status-key">License</span><span class="status-val">Active</span>
-                </div>
-              </div>
+            </div>
+            <!-- Integrated Doc List -->
+            <div class="doc-list" id="doc-list"
+              style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 5px;">
+              <div class="doc-empty">Loading documents…</div>
             </div>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">Quick Actions</div>
+            <div class="panel-title">Governance & Actions</div>
           </div>
-          <div class="panel-body" style="display:flex; flex-direction:column; gap:10px;">
-            <button class="new-chat-btn"
-              style="background:var(--surface); color:var(--text); border-color:var(--border)"
-              onclick="fetchDocs(); fetchStatus();">
-              Refresh All Stats
-            </button>
-            <button class="new-chat-btn"
-              style="background:var(--surface); color:var(--danger); border-color:var(--border)"
-              onclick="clearCollection()">
-              Wipe Knowledge Base
-            </button>
+          <div class="panel-body" style="display:flex; flex-direction:column; gap:16px;">
+            <div class="status-widget">
+              <div class="status-row"><span class="status-key">API Engine</span><span
+                  class="status-val online">Online</span></div>
+              <div class="status-row"><span class="status-key">Chat DB</span><span class="status-val"
+                  id="dash-db-val">—</span></div>
+              <div class="status-row"><span class="status-key">Security</span><span class="status-val"
+                  style="color:var(--success)">Enterprise</span></div>
+            </div>
+            <div style="display:flex; gap:8px;">
+              <button class="new-chat-btn"
+                style="flex:1; background:var(--surface); color:var(--text); border-color:var(--border); font-size:12px; padding:8px"
+                onclick="fetchDocs(); fetchStatus();">Refresh</button>
+              <button class="new-chat-btn"
+                style="flex:1; background:var(--surface); color:var(--danger); border-color:var(--border); font-size:12px; padding:8px"
+                onclick="clearCollection()">Wipe</button>
+            </div>
           </div>
         </div>
       </div>
@@ -2149,17 +2148,28 @@
       document.getElementById('dash-view').classList.remove('active');
       document.getElementById('chat-view').style.display = 'none';
 
-      // Sidebar context visibility
-      const chatContext = ['new-chat-container', 'chat-history-list'].map(id => $(id));
+      const chatSidebar = $('sidebar-chat-content');
+      const settingsSidebar = $('sidebar-settings-content');
+      const retrievalSidebar = $('sidebar-retrieval-settings');
+      const sideFooter = document.querySelector('.sidebar-footer');
+      const breadcrumb = $('breadcrumb-view');
 
       if (view === 'dash') {
         document.getElementById('menu-dash').classList.add('active');
         document.getElementById('dash-view').classList.add('active');
-        chatContext.forEach(el => { if (el) el.parentElement.style.display = 'none'; });
+        if (chatSidebar) chatSidebar.style.display = 'none';
+        if (retrievalSidebar) retrievalSidebar.style.display = 'none';
+        if (settingsSidebar) settingsSidebar.style.display = 'block';
+        if (sideFooter) sideFooter.style.display = 'none';
+        if (breadcrumb) breadcrumb.textContent = 'Admin Dashboard';
       } else {
         document.getElementById('menu-chat').classList.add('active');
         document.getElementById('chat-view').style.display = 'flex';
-        chatContext.forEach(el => { if (el) el.parentElement.style.display = ''; });
+        if (chatSidebar) chatSidebar.style.display = 'flex';
+        if (retrievalSidebar) retrievalSidebar.style.display = 'block';
+        if (settingsSidebar) settingsSidebar.style.display = 'none';
+        if (sideFooter) sideFooter.style.display = 'block';
+        if (breadcrumb) breadcrumb.textContent = 'Knowledge Assistant';
       }
     }
 
