@@ -99,6 +99,21 @@ def documents():
         return jsonify({"error": str(exc)}), 503
 
 
+@app.route("/api/documents/<filename>", methods=["DELETE"])
+def delete_document(filename):
+    try:
+        resp = requests.delete(f"{BACKEND_URL}/documents/{filename}", timeout=10)
+        if not resp.ok:
+            try:
+                err = resp.json().get("detail", resp.text)
+            except Exception:
+                err = resp.text
+            return jsonify({"error": err}), resp.status_code
+        return jsonify(resp.json())
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 # ── Chat history (PostgreSQL) ──────────────────────────────────────────────
 
 @app.route("/api/db-status")

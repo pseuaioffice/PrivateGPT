@@ -49,7 +49,7 @@ from pydantic import BaseModel
 from config import settings
 from indexer import index_all_documents, start_file_watcher, stop_file_watcher
 from rag_chain import ask
-from vector_store import collection_count, get_vector_store, clear_collection
+from vector_store import collection_count, get_vector_store, clear_collection, delete_by_filename
 import database as db
 import chat_history as ch
 
@@ -202,7 +202,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 class ChatRequest(BaseModel):
     question: str
-    k: int = 5
+    k: int = 15
     chat_uuid: str | None = None   # optional — if omitted, history is not saved
 
 
@@ -252,7 +252,7 @@ async def chat(request: ChatRequest):
             detail="No documents indexed yet. Upload documents and call POST /index first.",
         )
     try:
-        result = ask(request.question)
+        result = ask(request.question, k=request.k)
         answer = result["answer"]
         sources = result["sources"]
 
@@ -356,6 +356,33 @@ async def list_documents():
         if f.is_file()
     ]
     return {"documents": files, "count": len(files)}
+
+
+# ---------------------------------------------------------------------------
+@app.delete("/documents/{filename}", tags=["Index"])
+async def delete_document(filename: str):
+    """Delete a document file and its associated vectors."""
+    doc_path = Path(settings.DOCUMENTS_DIR) / filename
+    
+    # Check if file exists
+    if not doc_path.exists():
+        # Even if file is gone, try to clear vectors (maybe it was deleted manually)
+        vectors_deleted = delete_by_filename(filename)
+        if vectors_deleted > 0:
+            return {"message": f"Associated {vectors_deleted} vectors deleted for {filename}."}
+        raise HTTPException(status_code=404, detail="Document not found.")
+
+    try:
+        # 1. Delete the physical file
+        os.remove(doc_path)
+        # 2. Delete the vectors from the store
+        vectors_deleted = delete_by_filename(filename)
+        return {
+            "message": f"Successfully deleted {filename} and {vectors_deleted} vector(s)."
+        }
+    except Exception as e:
+        logger.error("Error deleting document %s: %s", filename, e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ---------------------------------------------------------------------------

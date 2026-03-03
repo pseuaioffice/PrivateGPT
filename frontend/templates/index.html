@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -1390,6 +1389,27 @@
         </div>
       </div>
 
+      <!-- Retrieval Settings -->
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Retrieval Settings</div>
+        <div class="status-widget">
+          <div class="status-row">
+            <span class="status-key">Context Depth (k)</span>
+            <span class="status-val" id="k-val">15</span>
+          </div>
+          <div style="padding: 10px 14px;">
+            <input type="range" id="k-slider" min="1" max="40" value="15" step="1"
+              style="width: 100%; accent-color: var(--brand-500); cursor: pointer;"
+              oninput="document.getElementById('k-val').textContent = this.value">
+            <div
+              style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-3); margin-top: 4px;">
+              <span>Speed (1)</span>
+              <span>Deep Analysis (40)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- System status -->
       <div class="sidebar-section">
         <div class="sidebar-section-label">System Status</div>
@@ -1701,7 +1721,7 @@
 
       let suggHTML = '';
       if (suggestions && suggestions.length > 0) {
-        const sChips = suggestions.map(s => 
+        const sChips = suggestions.map(s =>
           `<button class="sugg-chip" onclick="useSuggestionText(this)">${esc(s)}</button>`
         ).join('');
         suggHTML = `
@@ -1796,11 +1816,17 @@
       sendBtn.disabled = true;
       showTyping();
 
+      const kVal = $('k-slider') ? parseInt($('k-slider').value) : 15;
+
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: q, chat_uuid: activeChatUUID }),
+          body: JSON.stringify({
+            question: q,
+            chat_uuid: activeChatUUID,
+            k: kVal
+          }),
         });
         const data = await res.json();
         hideTyping();

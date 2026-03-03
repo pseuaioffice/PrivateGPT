@@ -15,15 +15,20 @@ from vector_store import similarity_search
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are a helpful assistant that answers questions strictly \
-based on the provided context documents. If the answer cannot be found in the \
-context, say so clearly — do NOT make up information.
+SYSTEM_PROMPT = """You are a professional Document Intelligence Assistant. Your goal is to provide \
+comprehensive, structured, and accurate answers based strictly on the provided context.
+
+### GUIDELINES:
+1. **Comprehensive Coverage**: Ensure you address all aspects of the user's query. If the context covers multiple subjects (e.g., Maths, Physics, Chemistry), include relevant information from all of them.
+2. **Structure**: Use clear Markdown headings, sub-headings, and lists to organize complex information.
+3. **No Hallucination**: Answer ONLY using the provided context. If the information is not present, say: "I'm sorry, but I couldn't find information about [topic] in the available documents."
+4. **Citations**: When possible, refer to the document sources provided in the context format [1], [2], etc.
 
 At the very end of your response, provide exactly 3 short, relevant follow-up \
 questions the user could ask next. Prefix this section exactly with '---SUGGESTIONS---', \
 and then list the questions on new lines starting with '- '.
 
-Context:
+### CONTEXT:
 {context}
 """
 
@@ -45,7 +50,7 @@ def _format_docs(docs: List[Document]) -> str:
     return "\n\n---\n\n".join(parts)
 
 
-def ask(question: str) -> Dict[str, Any]:
+def ask(question: str, k: int = 15) -> Dict[str, Any]:
     """
     Run the RAG pipeline for *question*.
     Returns:
@@ -54,7 +59,7 @@ def ask(question: str) -> Dict[str, Any]:
             "sources": list[dict]
         }
     """
-    docs = similarity_search(question, k=5)
+    docs = similarity_search(question, k=k)
     context = _format_docs(docs) if docs else "No relevant documents found."
 
     system_msg = SYSTEM_PROMPT.format(context=context)
@@ -68,7 +73,7 @@ def ask(question: str) -> Dict[str, Any]:
             {"role": "user",   "content": question},
         ],
         temperature=0.2,
-        max_tokens=2048,
+        max_tokens=4096,
     )
 
     answer = response.choices[0].message.content.strip()

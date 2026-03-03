@@ -194,3 +194,23 @@ def clear_collection() -> None:
         logger.info("Vector store cleared.")
     except Exception as e:
         logger.error("Failed to clear vector store: %s", e)
+
+
+def delete_by_filename(filename: str) -> int:
+    """Delete all vectors associated with a specific filename."""
+    try:
+        conn = _get_conn()
+        with conn:
+            # We store metadata as a JSON string, so we use LIKE to find the filename
+            # Metadata is stored as {"source": "...", "filename": "example.pdf", ...}
+            # Since it's a JSON string, we look for "filename": "example.pdf"
+            count = conn.execute(
+                "DELETE FROM documents WHERE metadata LIKE ?",
+                (f'%"filename": "{filename}"%',),
+            ).rowcount
+        conn.close()
+        logger.info("Deleted %d vectors for file: %s", count, filename)
+        return count
+    except Exception as e:
+        logger.error("Failed to delete vectors for %s: %s", filename, e)
+        return 0
