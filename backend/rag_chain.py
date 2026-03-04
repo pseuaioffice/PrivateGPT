@@ -7,6 +7,8 @@ Uses the huggingface_hub InferenceClient directly to interact with models.
 import logging
 from typing import Any, Dict, List
 
+import requests
+
 from huggingface_hub import InferenceClient
 from langchain_core.documents import Document
 
@@ -35,11 +37,32 @@ and then list the questions on new lines starting with '- '.
 _hf_client: InferenceClient | None = None
 
 
-def _get_client() -> InferenceClient:
+def _get_hf_client() -> InferenceClient:
     global _hf_client
     if _hf_client is None:
         _hf_client = InferenceClient(api_key=settings.HUGGINGFACE_TOKEN)
     return _hf_client
+
+
+def _call_ollama(messages: List[Dict[str, str]]) -> str:
+    """Simple wrapper for Ollama local API."""
+    try:
+        url = f"{settings.OLLAMA_BASE_URL}/api/chat"
+        payload = {
+            "model": settings.CHAT_MODEL_LOCAL,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": 0.2,
+                "num_predict": 4096
+            }
+        }
+        res = requests.post(url, json=payload, timeout=60)
+        res.raise_for_status()
+        return res.json()["message"]["content"]
+    except Exception as e:
+        logger.error("Ollama call failed: %s", e)
+        raise RuntimeError(f"Local model (Ollama) error: {e}")
 
 
 def _format_docs(docs: List[Document]) -> str:
@@ -63,20 +86,23 @@ def ask(question: str, k: int = 15) -> Dict[str, Any]:
     context = _format_docs(docs) if docs else "No relevant documents found."
 
     system_msg = SYSTEM_PROMPT.format(context=context)
+    msgs = [
+        {"role": "system", "content": system_msg},
+        {"role": "user",   "content": question},
+    ]
 
-    logger.info("Calling %s with %d retrieved chunk(s).", settings.CHAT_MODEL, len(docs))
-
-    response = _get_client().chat_completion(
-        model=settings.CHAT_MODEL,
-        messages=[
-            {"role": "system", "content": system_msg},
-            {"role": "user",   "content": question},
-        ],
-        temperature=0.2,
-        max_tokens=4096,
-    )
-
-    answer = response.choices[0].message.content.strip()
+    if settings.MODEL_PROVIDER == "ollama":
+        logger.info("Calling local Ollama (%s) with %d chunks.", settings.CHAT_MODEL_LOCAL, len(docs))
+        answer = _call_ollama(msgs)
+    else:
+        logger.info("Calling Hugging Face Cloud (%s) with %d chunks.", settings.CHAT_MODEL, len(docs))
+        response = _get_hf_client().chat_completion(
+            model=settings.CHAT_MODEL,
+            messages=msgs,
+            temperature=0.2,
+            max_tokens=4096,
+        )
+        answer = response.choices[0].message.content.strip()
 
     suggestions = []
     if "---SUGGESTIONS---" in answer:

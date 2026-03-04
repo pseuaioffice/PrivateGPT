@@ -224,6 +224,8 @@ class StatusResponse(BaseModel):
     documents_folder: str
     chat_model: str
     embedding_model: str
+    model_provider: str
+    ollama_model: str
 
 
 # ---------------------------------------------------------------------------
@@ -241,7 +243,35 @@ async def status():
         documents_folder=str(Path(settings.DOCUMENTS_DIR).resolve()),
         chat_model=settings.CHAT_MODEL,
         embedding_model=settings.EMBEDDING_MODEL,
+        model_provider=settings.MODEL_PROVIDER,
+        ollama_model=settings.CHAT_MODEL_LOCAL
     )
+
+
+class ModelSettings(BaseModel):
+    provider: str  # 'huggingface' or 'ollama'
+    model_name: str | None = None
+
+
+@app.patch("/settings/model", tags=["System"])
+async def update_model_settings(payload: ModelSettings):
+    """Update the active AI model provider and model name."""
+    if payload.provider not in ["huggingface", "ollama"]:
+        raise HTTPException(status_code=400, detail="Invalid provider. Use 'huggingface' or 'ollama'.")
+    
+    settings.MODEL_PROVIDER = payload.provider
+    if payload.model_name:
+        if payload.provider == "ollama":
+            settings.CHAT_MODEL_LOCAL = payload.model_name
+        else:
+            settings.CHAT_MODEL = payload.model_name
+            
+    logger.info("Model settings updated: Provider=%s, Model=%s", settings.MODEL_PROVIDER, payload.model_name)
+    return {
+        "message": "Model settings updated.",
+        "provider": settings.MODEL_PROVIDER,
+        "chat_model": settings.CHAT_MODEL if settings.MODEL_PROVIDER == "huggingface" else settings.CHAT_MODEL_LOCAL
+    }
 
 
 @app.post("/chat", response_model=ChatResponse, tags=["RAG"])

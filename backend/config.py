@@ -35,6 +35,11 @@ class Settings:
     # PostgreSQL (optional — chat history disabled when not set)
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
+    # Local Ollama
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    MODEL_PROVIDER: str = "huggingface"  # default
+    CHAT_MODEL_LOCAL: str = "qwen"
+
     def validate(self) -> None:
         if not self.HUGGINGFACE_TOKEN:
             raise EnvironmentError(

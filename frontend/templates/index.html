@@ -334,6 +334,63 @@
       margin-bottom: 2px;
     }
 
+    /* Model select cards */
+    .model-selector {
+      display: flex;
+      gap: 12px;
+    }
+
+    .model-option {
+      flex: 1;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .model-option:hover {
+      border-color: var(--brand-300);
+      background: var(--brand-50);
+    }
+
+    .model-option.active {
+      border-color: var(--brand-500);
+      background: var(--brand-50);
+      box-shadow: 0 0 0 1px var(--brand-500);
+    }
+
+    .model-option-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .model-option-desc {
+      font-size: 10px;
+      color: var(--text-3);
+      margin-top: 4px;
+    }
+
+    .active-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      display: none;
+    }
+
+    .model-option.active .active-indicator {
+      display: block;
+    }
+
     /* Status widget */
     .status-widget {
       background: var(--surface-2);
@@ -1813,25 +1870,86 @@
       <div class="monitor-section">
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">Model Attributes & Strategy</div>
+            <div class="panel-title">Model Orchestration</div>
           </div>
-          <div class="panel-body">
-            <div class="status-widget" style="padding:10px; display:flex; flex-direction:column; gap:16px;">
+          <div class="panel-body" style="display:flex; flex-direction:column; gap:20px;">
+            <div class="model-selector">
+              <div class="model-option" id="opt-hf" onclick="setProvider('huggingface')">
+                <div class="active-indicator"></div>
+                <div class="model-option-title">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                  </svg>
+                  Hugging Face
+                </div>
+                <div class="model-option-desc">Cloud-based inference (Pro)</div>
+              </div>
+              <div class="model-option" id="opt-ollama" onclick="setProvider('ollama')">
+                <div class="active-indicator"></div>
+                <div class="model-option-title">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="10" rx="2" />
+                    <circle cx="12" cy="5" r="2" />
+                    <path d="M12 7v4" />
+                    <line x1="8" y1="16" x2="8" y2="16" />
+                    <line x1="16" y1="16" x2="16" y2="16" />
+                  </svg>
+                  Ollama Local
+                </div>
+                <div class="model-option-desc">Private on-device inference</div>
+              </div>
+            </div>
+
+            <div id="model-config-panel"
+              style="background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:16px;">
+              <div
+                style="font-size:11px; font-weight:600; color:var(--text-3); text-transform:uppercase; margin-bottom:10px;">
+                Configuration Details</div>
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center">
+                  <span style="font-size:13px; color:var(--text-2); font-weight:500"
+                    id="current-provider-label">Provider</span>
+                  <span id="provider-badge"
+                    style="font-size:10px; padding:2px 8px; border-radius:99px; background:var(--brand-50); color:var(--brand-500); font-weight:600">—</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center">
+                  <span style="font-size:13px; color:var(--text-2); font-weight:500">Active Model</span>
+                  <span id="active-model-name"
+                    style="font-size:13px; color:var(--text); font-weight:700; font-family:monospace">—</span>
+                  <div id="local-model-setting"
+                    style="display:none; margin-top:8px; border-top:1px solid var(--border); padding-top:12px;">
+                    <label
+                      style="font-size:11px; font-weight:600; color:var(--text-3); display:block; margin-bottom:6px;">LOCAL
+                      MODEL TAG</label>
+                    <div style="display:flex; gap:8px;">
+                      <input type="text" id="local-model-input" value="qwen"
+                        style="flex:1; background:var(--surface); border:1px solid var(--border); padding:6px 10px; border-radius:var(--radius-xs); font-size:12px; outline:none;"
+                        placeholder="e.g. qwen2.5">
+                      <button class="new-chat-btn" style="padding:6px 12px; width:auto; font-size:11px;"
+                        onclick="updateLocalModelName()">Apply</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="status-widget"
+              style="padding:10px; display:flex; flex-direction:column; gap:16px; margin-top:4px;">
               <div>
                 <div
-                  style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px; font-weight:600">
+                  style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:11px; font-weight:600">
                   <span>Response Creativity (Temperature)</span>
-                  <span id="temp-val">0.7</span>
+                  <span id="temp-val" style="color:var(--brand-500)">0.2</span>
                 </div>
-                <input type="range" min="0" max="1" step="0.1" value="0.7"
+                <input type="range" min="0" max="1" step="0.1" value="0.2"
                   style="width:100%; accent-color:var(--brand-500)"
                   oninput="document.getElementById('temp-val').textContent = this.value">
               </div>
               <div>
                 <div
-                  style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px; font-weight:600">
-                  <span>Max Context Generation</span>
-                  <span id="max-tok-val">4096</span>
+                  style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:11px; font-weight:600">
+                  <span>Max Generated Tokens</span>
+                  <span id="max-tok-val" style="color:var(--brand-500)">4096</span>
                 </div>
                 <input type="range" min="512" max="8192" step="128" value="4096"
                   style="width:100%; accent-color:var(--brand-500)"
@@ -2184,14 +2302,58 @@
 
           const n = (data.total_vectors || 0).toLocaleString();
           if ($('vec-val')) $('vec-val').textContent = n;
-          if ($('tb-vectors')) $('tb-vectors').textContent = n;
           if ($('dash-vec-total')) $('dash-vec-total').textContent = n;
 
-          const model = data.chat_model || '—';
-          if ($('model-val')) $('model-val').textContent = model;
-          if ($('dash-model')) $('dash-model').textContent = model.split('/').pop() || model;
+          // Model Provider UI Sync
+          const provider = data.model_provider || 'huggingface';
+          const isOllama = provider === 'ollama';
+
+          if ($('opt-hf')) $('opt-hf').classList.toggle('active', !isOllama);
+          if ($('opt-ollama')) $('opt-ollama').classList.toggle('active', isOllama);
+          if ($('provider-badge')) {
+            $('provider-badge').textContent = isOllama ? 'OLLAMA (LOCAL)' : 'HUGGING FACE (CLOUD)';
+            $('provider-badge').style.background = isOllama ? 'var(--neutral-100)' : 'var(--brand-50)';
+            $('provider-badge').style.color = isOllama ? 'var(--text-2)' : 'var(--brand-500)';
+          }
+          if ($('local-model-setting')) $('local-model-setting').style.display = isOllama ? 'block' : 'none';
+
+          const model = isOllama ? data.ollama_model : (data.chat_model || '—');
+          if ($('model-val')) $('model-val').textContent = model.split('/').pop();
+          if ($('dash-model')) $('dash-model').textContent = model.split('/').pop();
+          if ($('active-model-name')) $('active-model-name').textContent = model;
+
         } else { setOffline(); }
       } catch { setOffline(); }
+    }
+
+    async function setProvider(provider) {
+      try {
+        const res = await fetch('/api/settings/model', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: provider })
+        });
+        if (res.ok) {
+          toast(`Switched to ${provider} provider`, 'success');
+          fetchStatus();
+        }
+      } catch (err) { toast('Failed to switch provider', 'error'); }
+    }
+
+    async function updateLocalModelName() {
+      const modelName = $('local-model-input').value.trim();
+      if (!modelName) return;
+      try {
+        const res = await fetch('/api/settings/model', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ provider: 'ollama', model_name: modelName })
+        });
+        if (res.ok) {
+          toast(`Local model updated to ${modelName}`, 'success');
+          fetchStatus();
+        }
+      } catch (err) { toast('Failed to update model name', 'error'); }
     }
 
     function setOffline() {

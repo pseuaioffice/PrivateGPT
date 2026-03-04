@@ -165,5 +165,18 @@ def delete_chat(chat_uuid):
         return jsonify({"error": str(exc)}), 500
 
 
+@app.route("/api/settings/model", methods=["PATCH"])
+def update_model_settings():
+    try:
+        resp = requests.patch(
+            f"{BACKEND_URL}/settings/model",
+            json=request.get_json() or {},
+            timeout=5,
+        )
+        return jsonify(resp.json()), resp.status_code
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
