@@ -44,7 +44,7 @@ def chat():
         resp = requests.post(
             f"{BACKEND_URL}/chat",
             json=data,  # Pass entire payload including chat_uuid
-            timeout=60,
+            timeout=300,
         )
         if not resp.ok:
             try:

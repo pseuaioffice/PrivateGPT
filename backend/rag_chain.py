@@ -57,7 +57,7 @@ def _call_ollama(messages: List[Dict[str, str]]) -> str:
                 "num_predict": 4096
             }
         }
-        res = requests.post(url, json=payload, timeout=60)
+        res = requests.post(url, json=payload, timeout=300)
         res.raise_for_status()
         return res.json()["message"]["content"]
     except Exception as e:
