@@ -1,6 +1,6 @@
 """
 main.py
-FastAPI application — entry point for the RAG backend.
+FastAPI application — RAG Engine Entry Point
 
 Endpoints:
   GET  /health                   — liveness check

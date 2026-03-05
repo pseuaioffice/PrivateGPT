@@ -1823,7 +1823,9 @@
           const n = (data.total_vectors || 0).toLocaleString();
           if ($('vec-val')) $('vec-val').textContent = n;
           if ($('tb-vectors')) $('tb-vectors').textContent = n;
-          if ($('model-val')) $('model-val').textContent = data.chat_model || '—';
+          const isOllama = data.model_provider === 'ollama';
+          const model = isOllama ? data.ollama_model : (data.chat_model || '—');
+          if ($('model-val')) $('model-val').textContent = model.split('/').pop() + (isOllama ? ' (Local)' : ' (Cloud)');
         } else { setOffline(); }
       } catch { setOffline(); }
     }

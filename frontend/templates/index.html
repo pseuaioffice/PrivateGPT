@@ -2344,8 +2344,12 @@
           if ($('model-val')) $('model-val').textContent = model.split('/').pop();
           if ($('dash-model')) $('dash-model').textContent = model.split('/').pop();
           if ($('active-model-name')) $('active-model-name').textContent = model;
-          if ($('cloud-model-input') && !isOllama) $('cloud-model-input').value = data.chat_model || '';
-          if ($('local-model-input') && isOllama) $('local-model-input').value = data.ollama_model || 'qwen';
+          if ($('cloud-model-input') && !isOllama && document.activeElement !== $('cloud-model-input')) {
+            $('cloud-model-input').value = data.chat_model || '';
+          }
+          if ($('local-model-input') && isOllama && document.activeElement !== $('local-model-input')) {
+            $('local-model-input').value = data.ollama_model || 'qwen';
+          }
 
         } else { setOffline(); }
       } catch { setOffline(); }
