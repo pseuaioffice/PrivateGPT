@@ -11,3 +11,6 @@ python-multipart
 pypdf
 docx2txt
 watchdog
+psycopg2-binary
+sqlalchemy
+requests
