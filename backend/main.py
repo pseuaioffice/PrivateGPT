@@ -231,6 +231,16 @@ class StatusResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+@app.get("/", tags=["System"])
+async def root():
+    return {
+        "message": "PrivateGPT Backend API is running!",
+        "docs": "/docs",
+        "health": "/health",
+        "status": "/status"
+    }
+
+
 @app.get("/health", tags=["System"])
 async def health():
     return {"status": "ok"}
