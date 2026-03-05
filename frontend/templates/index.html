@@ -1916,18 +1916,40 @@
                   <span style="font-size:13px; color:var(--text-2); font-weight:500">Active Model</span>
                   <span id="active-model-name"
                     style="font-size:13px; color:var(--text); font-weight:700; font-family:monospace">—</span>
-                  <div id="local-model-setting"
-                    style="display:none; margin-top:8px; border-top:1px solid var(--border); padding-top:12px;">
-                    <label
-                      style="font-size:11px; font-weight:600; color:var(--text-3); display:block; margin-bottom:6px;">LOCAL
-                      MODEL TAG</label>
-                    <div style="display:flex; gap:8px;">
-                      <input type="text" id="local-model-input" value="qwen"
-                        style="flex:1; background:var(--surface); border:1px solid var(--border); padding:6px 10px; border-radius:var(--radius-xs); font-size:12px; outline:none;"
-                        placeholder="e.g. qwen2.5">
-                      <button class="new-chat-btn" style="padding:6px 12px; width:auto; font-size:11px;"
-                        onclick="updateLocalModelName()">Apply</button>
-                    </div>
+                </div>
+
+                <div id="local-model-setting"
+                  style="display:none; margin-top:8px; border-top:1px solid var(--border); padding-top:12px;">
+                  <label
+                    style="font-size:10px; font-weight:700; color:var(--text-3); display:block; margin-bottom:6px; letter-spacing:0.05em">LOCAL
+                    MODEL TAG (OLLAMA)</label>
+                  <div style="display:flex; gap:8px;">
+                    <input type="text" id="local-model-input" value="qwen"
+                      style="flex:1; background:var(--surface); border:1px solid var(--border); padding:6px 10px; border-radius:var(--radius-xs); font-size:12px; outline:none;"
+                      placeholder="e.g. qwen2.5">
+                    <button class="new-chat-btn" style="padding:6px 12px; width:auto; font-size:11px;"
+                      onclick="updateModelName('ollama', 'local-model-input')">Apply</button>
+                  </div>
+                </div>
+
+                <div id="cloud-model-setting"
+                  style="display:none; margin-top:8px; border-top:1px solid var(--border); padding-top:12px;">
+                  <label
+                    style="font-size:10px; font-weight:700; color:var(--text-3); display:block; margin-bottom:6px; letter-spacing:0.05em">CLOUD
+                    MODEL PATH (HUGGING FACE)</label>
+                  <div style="display:flex; gap:8px; margin-bottom:8px;">
+                    <input type="text" id="cloud-model-input" value="mistralai/Mistral-7B-Instruct-v0.3"
+                      style="flex:1; background:var(--surface); border:1px solid var(--border); padding:6px 10px; border-radius:var(--radius-xs); font-size:12px; outline:none;"
+                      placeholder="e.g. mistralai/Mistral-7B-Instruct-v0.3">
+                    <button class="new-chat-btn" style="padding:6px 12px; width:auto; font-size:11px;"
+                      onclick="updateModelName('huggingface', 'cloud-model-input')">Apply</button>
+                  </div>
+                  <div style="font-size:10px; color:var(--text-3); line-height:1.4">
+                    Recommended: <br>
+                    <code style="cursor:pointer; color:var(--brand-500); text-decoration:underline"
+                      onclick="$('cloud-model-input').value=this.textContent">mistralai/Mistral-7B-Instruct-v0.3</code><br>
+                    <code style="cursor:pointer; color:var(--brand-500); text-decoration:underline"
+                      onclick="$('cloud-model-input').value=this.textContent">meta-llama/Llama-3.2-3B-Instruct</code>
                   </div>
                 </div>
               </div>
@@ -2316,11 +2338,14 @@
             $('provider-badge').style.color = isOllama ? 'var(--text-2)' : 'var(--brand-500)';
           }
           if ($('local-model-setting')) $('local-model-setting').style.display = isOllama ? 'block' : 'none';
+          if ($('cloud-model-setting')) $('cloud-model-setting').style.display = isOllama ? 'none' : 'block';
 
           const model = isOllama ? data.ollama_model : (data.chat_model || '—');
           if ($('model-val')) $('model-val').textContent = model.split('/').pop();
           if ($('dash-model')) $('dash-model').textContent = model.split('/').pop();
           if ($('active-model-name')) $('active-model-name').textContent = model;
+          if ($('cloud-model-input') && !isOllama) $('cloud-model-input').value = data.chat_model || '';
+          if ($('local-model-input') && isOllama) $('local-model-input').value = data.ollama_model || 'qwen';
 
         } else { setOffline(); }
       } catch { setOffline(); }
@@ -2340,17 +2365,17 @@
       } catch (err) { toast('Failed to switch provider', 'error'); }
     }
 
-    async function updateLocalModelName() {
-      const modelName = $('local-model-input').value.trim();
+    async function updateModelName(provider, inputId) {
+      const modelName = $(inputId).value.trim();
       if (!modelName) return;
       try {
         const res = await fetch('/api/settings/model', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ provider: 'ollama', model_name: modelName })
+          body: JSON.stringify({ provider: provider, model_name: modelName })
         });
         if (res.ok) {
-          toast(`Local model updated to ${modelName}`, 'success');
+          toast(`${provider === 'ollama' ? 'Local' : 'Cloud'} model updated to ${modelName}`, 'success');
           fetchStatus();
         }
       } catch (err) { toast('Failed to update model name', 'error'); }
