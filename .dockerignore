@@ -1,0 +1,18 @@
+# General ignore
+.git/
+.venv/
+node_modules/
+.dockerignore
+Dockerfile
+docker-compose.yml
+
+# Backend specifics
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+backend/chroma_db/
+backend/documents/
+
+# Frontend specifics
+frontend/__pycache__/
+frontend/*.pyc
