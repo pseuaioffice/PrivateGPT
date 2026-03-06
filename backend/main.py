@@ -1,6 +1,6 @@
 """
 main.py
-FastAPI application — RAG Engine Entry Point
+FastAPI application — RAG Engine (Qwen2.5-7B)
 
 Endpoints:
   GET  /health                   — liveness check
@@ -254,7 +254,8 @@ async def status():
         chat_model=settings.CHAT_MODEL,
         embedding_model=settings.EMBEDDING_MODEL,
         model_provider=settings.MODEL_PROVIDER,
-        ollama_model=settings.CHAT_MODEL_LOCAL
+        ollama_model=settings.CHAT_MODEL_LOCAL,
+        openai_key_set=bool(settings.OPENAI_API_KEY)
     )
 
 

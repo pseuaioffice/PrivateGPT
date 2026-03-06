@@ -14,6 +14,7 @@ class Settings:
     HUGGINGFACE_BASE_URL: str = os.getenv(
         "HUGGINGFACE_BASE_URL", "https://router.huggingface.co/hf-inference/v1"
     )
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
 
     # Model names
     CHAT_MODEL: str = os.getenv("CHAT_MODEL", "gpt-4o")

@@ -10,6 +10,7 @@ from typing import Any, Dict, List
 import requests
 
 from huggingface_hub import InferenceClient
+from openai import OpenAI
 from langchain_core.documents import Document
 
 from config import settings
@@ -35,6 +36,7 @@ and then list the questions on new lines starting with '- '.
 """
 
 _hf_client: InferenceClient | None = None
+_oa_client: OpenAI | None = None
 
 
 def _get_hf_client() -> InferenceClient:
@@ -42,6 +44,13 @@ def _get_hf_client() -> InferenceClient:
     if _hf_client is None:
         _hf_client = InferenceClient(api_key=settings.HUGGINGFACE_TOKEN)
     return _hf_client
+
+
+def _get_oa_client() -> OpenAI:
+    global _oa_client
+    if _oa_client is None:
+        _oa_client = OpenAI(api_key=settings.OPENAI_API_KEY)
+    return _oa_client
 
 
 def _call_ollama(messages: List[Dict[str, str]]) -> str:
@@ -95,14 +104,31 @@ def ask(question: str, k: int = 15) -> Dict[str, Any]:
         logger.info("Calling local Ollama (%s) with %d chunks.", settings.CHAT_MODEL_LOCAL, len(docs))
         answer = _call_ollama(msgs)
     else:
-        logger.info("Calling Hugging Face Cloud (%s) with %d chunks.", settings.CHAT_MODEL, len(docs))
-        response = _get_hf_client().chat_completion(
-            model=settings.CHAT_MODEL,
-            messages=msgs,
-            temperature=0.2,
-            max_tokens=4096,
-        )
-        answer = response.choices[0].message.content.strip()
+        model_name = settings.CHAT_MODEL
+        is_openai = model_name.lower().startswith("gpt-")
+
+        if is_openai:
+            if not settings.OPENAI_API_KEY:
+                logger.error("OpenAI model requested but OPENAI_API_KEY is missing.")
+                raise RuntimeError("OpenAI API Key is missing. Please add OPENAI_API_KEY to your .env file to use GPT models.")
+            
+            logger.info("Calling OpenAI Cloud (%s) with %d chunks.", model_name, len(docs))
+            response = _get_oa_client().chat.completions.create(
+                model=model_name,
+                messages=msgs,
+                temperature=0.2,
+                max_tokens=4096,
+            )
+            answer = response.choices[0].message.content.strip()
+        else:
+            logger.info("Calling Hugging Face Cloud (%s) with %d chunks.", model_name, len(docs))
+            response = _get_hf_client().chat_completion(
+                model=model_name,
+                messages=msgs,
+                temperature=0.2,
+                max_tokens=4096,
+            )
+            answer = response.choices[0].message.content.strip()
 
     suggestions = []
     if "---SUGGESTIONS---" in answer:

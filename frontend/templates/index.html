@@ -1947,9 +1947,14 @@
                   <div style="font-size:10px; color:var(--text-3); line-height:1.4">
                     Recommended: <br>
                     <code style="cursor:pointer; color:var(--brand-500); text-decoration:underline"
-                      onclick="$('cloud-model-input').value=this.textContent">mistralai/Mistral-7B-Instruct-v0.3</code><br>
+                      onclick="$('cloud-model-input').value=this.textContent">Qwen/Qwen2.5-7B-Instruct</code><br>
                     <code style="cursor:pointer; color:var(--brand-500); text-decoration:underline"
-                      onclick="$('cloud-model-input').value=this.textContent">meta-llama/Llama-3.2-3B-Instruct</code>
+                      onclick="$('cloud-model-input').value=this.textContent">Qwen/Qwen2.5-72B-Instruct</code>
+                    <div id="openai-key-status" style="margin-top:8px; font-size:10px; display:none;">
+                      <span id="key-badge" style="padding:2px 6px; border-radius:4px; font-weight:700;">KEY
+                        MISSING</span>
+                      <span style="color:var(--text-3); margin-left:4px;">(Check .env)</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2349,6 +2354,17 @@
           }
           if ($('local-model-input') && isOllama && document.activeElement !== $('local-model-input')) {
             $('local-model-input').value = data.ollama_model || 'qwen';
+          }
+
+          // OpenAI Key UI Sync
+          const isGpt = !isOllama && (data.chat_model || '').startsWith('gpt-');
+          if ($('openai-key-status')) {
+            $('openai-key-status').style.display = isGpt ? 'block' : 'none';
+            if ($('key-badge')) {
+              $('key-badge').textContent = data.openai_key_set ? 'KEY FOUND' : 'KEY MISSING';
+              $('key-badge').style.background = data.openai_key_set ? 'var(--success-bg)' : 'var(--danger-bg)';
+              $('key-badge').style.color = data.openai_key_set ? 'var(--success)' : 'var(--danger)';
+            }
           }
 
         } else { setOffline(); }
