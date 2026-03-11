@@ -251,8 +251,8 @@ async def status():
     return StatusResponse(
         total_vectors=collection_count(),
         documents_folder=str(Path(settings.DOCUMENTS_DIR).resolve()),
-        chat_model=settings.CHAT_MODEL,
-        embedding_model=settings.EMBEDDING_MODEL,
+        chat_model=settings.CHAT_MODEL if settings.MODEL_PROVIDER == "huggingface" else settings.CHAT_MODEL_LOCAL,
+        embedding_model=settings.EMBEDDING_MODEL if settings.MODEL_PROVIDER == "huggingface" else settings.EMBEDDING_MODEL_LOCAL,
         model_provider=settings.MODEL_PROVIDER,
         ollama_model=settings.CHAT_MODEL_LOCAL,
         openai_key_set=bool(settings.OPENAI_API_KEY)

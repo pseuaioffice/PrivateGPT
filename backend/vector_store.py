@@ -21,20 +21,20 @@ from typing import List, Optional
 from langchain_core.documents import Document
 
 from config import settings
-from embeddings import HuggingFaceServerlessEmbeddings
+from embeddings import UniversalEmbeddings
 
 logger = logging.getLogger(__name__)
 
-_embed_fn: Optional[HuggingFaceServerlessEmbeddings] = None
+_embed_fn: Optional[UniversalEmbeddings] = None
 _db_path: Optional[str] = None
 
 
 # ── Embedding helper ────────────────────────────────────────────────────────
 
-def _get_embed_fn() -> HuggingFaceServerlessEmbeddings:
+def _get_embed_fn() -> UniversalEmbeddings:
     global _embed_fn
     if _embed_fn is None:
-        _embed_fn = HuggingFaceServerlessEmbeddings()
+        _embed_fn = UniversalEmbeddings()
     return _embed_fn
 
 
