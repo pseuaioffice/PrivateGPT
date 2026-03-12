@@ -54,7 +54,7 @@ def _get_oa_client() -> OpenAI:
 
 
 def _call_ollama(messages: List[Dict[str, str]]) -> str:
-    """Simple wrapper for Ollama local API."""
+    """Simple wrapper for Ollama local API with timeout handling."""
     try:
         url = f"{settings.OLLAMA_BASE_URL}/api/chat"
         payload = {
@@ -63,12 +63,19 @@ def _call_ollama(messages: List[Dict[str, str]]) -> str:
             "stream": False,
             "options": {
                 "temperature": 0.2,
-                "num_predict": 4096
+                "num_predict": 2048  # Reduced from 4096 to prevent timeouts
             }
         }
-        res = requests.post(url, json=payload, timeout=300)
+        # Reduced timeout to 60 seconds for better responsiveness
+        res = requests.post(url, json=payload, timeout=60)
         res.raise_for_status()
         return res.json()["message"]["content"]
+    except requests.exceptions.Timeout:
+        logger.error("Ollama request timed out after 60 seconds")
+        raise RuntimeError("The model took too long to respond. Please try again with a shorter question or check if Ollama is running properly.")
+    except requests.exceptions.ConnectionError:
+        logger.error("Cannot connect to Ollama at %s", settings.OLLAMA_BASE_URL)
+        raise RuntimeError(f"Cannot connect to Ollama at {settings.OLLAMA_BASE_URL}. Please ensure Ollama is running.")
     except Exception as e:
         logger.error("Ollama call failed: %s", e)
         raise RuntimeError(f"Local model (Ollama) error: {e}")

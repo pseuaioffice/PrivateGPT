@@ -38,8 +38,8 @@ class Settings:
 
     # Local Ollama
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    MODEL_PROVIDER: str = "huggingface"  # default
-    CHAT_MODEL_LOCAL: str = "qwen"
+    MODEL_PROVIDER: str = os.getenv("MODEL_PROVIDER", "huggingface")
+    CHAT_MODEL_LOCAL: str = os.getenv("CHAT_MODEL_LOCAL", "qwen")
     EMBEDDING_MODEL_LOCAL: str = os.getenv("EMBEDDING_MODEL_LOCAL", "nomic-embed-text")
 
     def validate(self) -> None:

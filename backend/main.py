@@ -38,20 +38,47 @@ warnings.filterwarnings(
 import logging
 import os
 import shutil
+import json
+import requests
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from config import settings
 from indexer import index_all_documents, start_file_watcher, stop_file_watcher
 from rag_chain import ask
 from vector_store import collection_count, get_vector_store, clear_collection, delete_by_filename
+from model_manager import model_manager, ModelStatus
 import database as db
 import chat_history as ch
+
+# ---------------------------------------------------------------------------
+# WebSocket Manager
+# ---------------------------------------------------------------------------
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                pass
+
+manager = ConnectionManager()
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -155,6 +182,21 @@ async def lifespan(app: FastAPI):
     # Initialise PostgreSQL (optional — graceful no-op if not configured)
     db.init_db()
 
+    # Load persistent model configuration
+    try:
+        active_models = model_manager.get_active_models()
+        settings.MODEL_PROVIDER = active_models["provider"]
+        settings.CHAT_MODEL_LOCAL = active_models["chat_model"]
+        settings.EMBEDDING_MODEL_LOCAL = active_models["embedding_model"]
+        logger.info(
+            "Loaded model config: provider=%s, chat=%s, embedding=%s",
+            settings.MODEL_PROVIDER,
+            settings.CHAT_MODEL_LOCAL,
+            settings.EMBEDDING_MODEL_LOCAL
+        )
+    except Exception as e:
+        logger.warning("Could not load persistent model config: %s", e)
+
     # Smart startup indexing: find which files are NOT yet indexed and index them.
     # Wrapped in try/except — if the embedding API is rate-limited or unavailable
     # the server still starts and already-indexed documents remain accessible.
@@ -226,6 +268,7 @@ class StatusResponse(BaseModel):
     embedding_model: str
     model_provider: str
     ollama_model: str
+    openai_key_set: bool
 
 
 # ---------------------------------------------------------------------------
@@ -266,22 +309,183 @@ class ModelSettings(BaseModel):
 
 @app.patch("/settings/model", tags=["System"])
 async def update_model_settings(payload: ModelSettings):
-    """Update the active AI model provider and model name."""
+    """Update the active AI model provider and model name with persistence."""
     if payload.provider not in ["huggingface", "ollama"]:
         raise HTTPException(status_code=400, detail="Invalid provider. Use 'huggingface' or 'ollama'.")
     
     settings.MODEL_PROVIDER = payload.provider
+    model_manager.set_config("provider", payload.provider)
+    
     if payload.model_name:
         if payload.provider == "ollama":
             settings.CHAT_MODEL_LOCAL = payload.model_name
+            model_manager.set_config("chat_model", payload.model_name)
         else:
             settings.CHAT_MODEL = payload.model_name
+            # Note: HuggingFace models are not persisted as they're cloud-based
             
     logger.info("Model settings updated: Provider=%s, Model=%s", settings.MODEL_PROVIDER, payload.model_name)
     return {
-        "message": "Model settings updated.",
+        "message": "Model settings updated and persisted.",
         "provider": settings.MODEL_PROVIDER,
         "chat_model": settings.CHAT_MODEL if settings.MODEL_PROVIDER == "huggingface" else settings.CHAT_MODEL_LOCAL
+    }
+
+
+@app.websocket("/ws/ollama")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+
+class OllamaPullRequest(BaseModel):
+    model_name: str
+
+@app.post("/ollama/pull", tags=["System"])
+async def pull_ollama_model(request: OllamaPullRequest, background_tasks: BackgroundTasks):
+    """Trigger Ollama to pull a model and stream progress via WebSockets."""
+    async def _pull_stream():
+        try:
+            url = f"{settings.OLLAMA_BASE_URL}/api/pull"
+            logger.info("Starting Ollama pull for: %s", request.model_name)
+            
+            # Use requests with stream=True to get progress
+            with requests.post(url, json={"name": request.model_name, "stream": True}, stream=True, timeout=None) as res:
+                res.raise_for_status()
+                for line in res.iter_lines():
+                    if line:
+                        data = json.loads(line)
+                        status = data.get("status", "")
+                        completed = data.get("completed", 0)
+                        total = data.get("total", 0)
+                        
+                        progress = 0
+                        if total > 0:
+                            progress = int((completed / total) * 100)
+                        
+                        await manager.broadcast({
+                            "model": request.model_name,
+                            "status": status,
+                            "progress": progress
+                        })
+                        
+            logger.info("Successfully finished pull task for: %s", request.model_name)
+        except Exception as e:
+            logger.error("Failed override pull model %s: %s", request.model_name, e)
+            await manager.broadcast({
+                "model": request.model_name,
+                "status": "error",
+                "message": str(e)
+            })
+
+    background_tasks.add_task(_pull_stream)
+    return {"message": f"Started pull for {request.model_name}."}
+
+
+@app.get("/ollama/models", tags=["System"])
+@app.get("/ollama/tags", tags=["System"])
+async def list_ollama_models():
+    """List models available in the local Ollama instance with enhanced metadata."""
+    try:
+        models = model_manager.list_local_models()
+        return {
+            "models": [
+                {
+                    "name": m.name,
+                    "size": m.size,
+                    "modified_at": m.modified_at,
+                    "digest": m.digest,
+                    "status": m.status
+                }
+                for m in models
+            ],
+            "active_models": model_manager.get_active_models()
+        }
+    except Exception as e:
+        logger.error("Failed to list Ollama models: %s", e)
+        return {"models": [], "active_models": model_manager.get_active_models()}
+
+
+class ModelCheckRequest(BaseModel):
+    model_name: str
+
+
+@app.post("/ollama/check", tags=["System"])
+async def check_model_status(request: ModelCheckRequest):
+    """Check if a specific model is installed in Ollama."""
+    try:
+        exists = model_manager.check_model_exists(request.model_name)
+        return {
+            "model": request.model_name,
+            "installed": exists,
+            "status": ModelStatus.INSTALLED.value if exists else ModelStatus.NOT_INSTALLED.value
+        }
+    except Exception as e:
+        logger.error("Failed to check model status: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/ollama/progress/{model_name}", tags=["System"])
+async def get_download_progress(model_name: str):
+    """Get current download progress for a model."""
+    progress = model_manager.get_download_progress(model_name)
+    if progress:
+        return {
+            "model": model_name,
+            "status": progress.get("status", "unknown"),
+            "progress": progress.get("progress", 0),
+            "error": progress.get("error")
+        }
+    return {"model": model_name, "status": "unknown", "progress": 0}
+
+
+@app.get("/ollama/pull-stream", tags=["System"])
+async def pull_model_stream(model_name: str):
+    """
+    Stream model download progress using Server-Sent Events (SSE).
+    This provides real-time progress updates for the UI.
+    """
+    async def event_generator():
+        try:
+            for update in model_manager.pull_model(model_name):
+                yield f"data: {json.dumps(update)}\n\n"
+            yield f"data: {json.dumps({'model': model_name, 'status': 'success', 'progress': 100})}\n\n"
+        except Exception as e:
+            logger.error("SSE pull error: %s", e)
+            yield f"data: {json.dumps({'model': model_name, 'status': 'error', 'error': str(e)})}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
+
+
+@app.patch("/settings/ollama", tags=["System"])
+async def update_ollama_settings(chat_model: str | None = None, embedding_model: str | None = None):
+    """Specifically update Ollama chat and embedding models with persistence."""
+    if chat_model:
+        settings.CHAT_MODEL_LOCAL = chat_model
+        model_manager.set_config("chat_model", chat_model)
+    if embedding_model:
+        settings.EMBEDDING_MODEL_LOCAL = embedding_model
+        model_manager.set_config("embedding_model", embedding_model)
+    
+    # Ensure provider is set to ollama
+    settings.MODEL_PROVIDER = "ollama"
+    model_manager.set_config("provider", "ollama")
+    
+    return {
+        "chat_model": settings.CHAT_MODEL_LOCAL,
+        "embedding_model": settings.EMBEDDING_MODEL_LOCAL,
+        "provider": settings.MODEL_PROVIDER
     }
 
 

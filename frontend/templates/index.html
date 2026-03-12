@@ -1699,7 +1699,7 @@
       </div>
     </div>
 
-    <div id="chat-view" style="flex:1; display:flex; flex-direction:column; overflow:hidden">
+    <div id="chat-view" style="flex:1; display:none; flex-direction:column; overflow:hidden">
       <!-- Messages -->
       <div id="messages">
         <div class="empty-state" id="empty-state">
@@ -1920,15 +1920,70 @@
 
                 <div id="local-model-setting"
                   style="display:none; margin-top:8px; border-top:1px solid var(--border); padding-top:12px;">
-                  <label
-                    style="font-size:10px; font-weight:700; color:var(--text-3); display:block; margin-bottom:6px; letter-spacing:0.05em">LOCAL
-                    MODEL TAG (OLLAMA)</label>
-                  <div style="display:flex; gap:8px;">
-                    <input type="text" id="local-model-input" value="qwen"
-                      style="flex:1; background:var(--surface); border:1px solid var(--border); padding:6px 10px; border-radius:var(--radius-xs); font-size:12px; outline:none;"
-                      placeholder="e.g. qwen2.5">
-                    <button class="new-chat-btn" style="padding:6px 12px; width:auto; font-size:11px;"
-                      onclick="updateModelName('ollama', 'local-model-input')">Apply</button>
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <span style="font-size:11px; font-weight:600; color:var(--text-2);">Local Models</span>
+                    <button class="new-chat-btn" style="padding:4px 8px; width:auto; font-size:10px; background:var(--surface); border:1px solid var(--border);"
+                      onclick="fetchOllamaModels()" title="Refresh model list">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6"/>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                      </svg>
+                    </button>
+                  </div>
+                  <div style="display:flex; flex-direction:column; gap:16px;">
+                    <!-- Chat Model -->
+                    <div>
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <label style="font-size:10px; font-weight:700; color:var(--text-3); letter-spacing:0.05em">OLLAMA CHAT MODEL</label>
+                        <span id="chat-model-status" style="font-size:9px; font-weight:600; padding:1px 6px; border-radius:4px;">Checking...</span>
+                      </div>
+                      <div style="display:flex; gap:8px;">
+                        <select id="local-chat-model-select"
+                          style="flex:1; background:var(--surface); border:1px solid var(--border); padding:6px 10px; border-radius:var(--radius-xs); font-size:12px; outline:none; color:var(--text);">
+                          <option value="">Select a model...</option>
+                          <option value="custom">-- Enter Custom Model --</option>
+                        </select>
+                        <input type="text" id="local-chat-model-input"
+                          style="flex:1; background:var(--surface); border:1px solid var(--border); padding:6px 10px; border-radius:var(--radius-xs); font-size:12px; outline:none; display:none;"
+                          placeholder="e.g. qwen2.5">
+                        <button class="new-chat-btn" id="btn-apply-chat" style="padding:6px 12px; width:auto; font-size:11px;"
+                          onclick="updateOllamaModels()">Apply</button>
+                        <button class="new-chat-btn" id="btn-pull-chat" style="padding:6px 12px; width:auto; font-size:11px; background:var(--brand-600); display:none;"
+                          onclick="pullSpecificModel('chat')">Install</button>
+                      </div>
+                      <div class="progress-bar-wrap" id="chat-pull-progress-wrap" style="margin-top:8px; height:6px;">
+                        <div class="progress-bar-fill" id="chat-pull-progress-bar"></div>
+                      </div>
+                    </div>
+
+                    <!-- Embedding Model -->
+                    <div>
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <label style="font-size:10px; font-weight:700; color:var(--text-3); letter-spacing:0.05em">OLLAMA EMBEDDING MODEL</label>
+                        <span id="embed-model-status" style="font-size:9px; font-weight:600; padding:1px 6px; border-radius:4px;">Checking...</span>
+                      </div>
+                      <div style="display:flex; gap:8px;">
+                        <select id="local-embed-model-select"
+                          style="flex:1; background:var(--surface); border:1px solid var(--border); padding:6px 10px; border-radius:var(--radius-xs); font-size:12px; outline:none; color:var(--text);">
+                          <option value="">Select a model...</option>
+                          <option value="custom">-- Enter Custom Model --</option>
+                        </select>
+                        <input type="text" id="local-embed-model-input"
+                          style="flex:1; background:var(--surface); border:1px solid var(--border); padding:6px 10px; border-radius:var(--radius-xs); font-size:12px; outline:none; display:none;"
+                          placeholder="e.g. nomic-embed-text">
+                        <button class="new-chat-btn" id="btn-apply-embed" style="padding:6px 12px; width:auto; font-size:11px;"
+                          onclick="updateOllamaModels()">Apply</button>
+                        <button class="new-chat-btn" id="btn-pull-embed" style="padding:6px 12px; width:auto; font-size:11px; background:var(--brand-600); display:none;"
+                          onclick="pullSpecificModel('embed')">Install</button>
+                      </div>
+                      <div class="progress-bar-wrap" id="embed-pull-progress-wrap" style="margin-top:8px; height:6px;">
+                        <div class="progress-bar-fill" id="embed-pull-progress-bar"></div>
+                      </div>
+                    </div>
+
+                    <div id="ws-status" style="font-size:9px; color:var(--text-3); text-align:center; border-top:1px solid var(--border); padding-top:10px;">
+                       WebSocket: <span id="ws-indicator" style="color:var(--danger)">Disconnected</span>
+                    </div>
                   </div>
                 </div>
 
@@ -2286,6 +2341,415 @@
       }
     }
 
+    /* ── Ollama WebSocket & Model Management ──────────────────────── */
+    let ollamaWS = null;
+    let installedModels = [];
+    let currentPulls = new Map(); // Track active model downloads
+
+    function initOllamaWS() {
+      if (ollamaWS) return;
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.hostname + ':8000'; 
+      ollamaWS = new WebSocket(`${protocol}//${host}/ws/ollama`);
+
+      ollamaWS.onopen = () => {
+        $('ws-indicator').textContent = 'Connected';
+        $('ws-indicator').style.color = 'var(--success)';
+      };
+
+      ollamaWS.onclose = () => {
+        $('ws-indicator').textContent = 'Disconnected';
+        $('ws-indicator').style.color = 'var(--danger)';
+        ollamaWS = null;
+        setTimeout(initOllamaWS, 3000);
+      };
+
+      ollamaWS.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        handleModelProgress(data);
+      };
+    }
+
+    function handleModelProgress(data) {
+      const model = data.model;
+      const progress = data.progress || 0;
+      const status = data.status;
+
+      // Determine if it matches current chat or embed model
+      const currentChat = $('local-chat-model-input').value.trim();
+      const currentEmbed = $('local-embed-model-input').value.trim();
+
+      // Check if this progress update is for a model we're tracking
+      const isChatModel = model === currentChat || model + ':latest' === currentChat;
+      const isEmbedModel = model === currentEmbed || model + ':latest' === currentEmbed;
+
+      if (isChatModel) {
+        updatePullUI('chat', status, progress);
+      }
+      if (isEmbedModel) {
+        updatePullUI('embed', status, progress);
+      }
+
+      // Store in active pulls tracking
+      if (status === 'success' || status === 'error') {
+        currentPulls.delete(model);
+        if (status === 'success') {
+          toast(`Model ${model} installed successfully`, 'success');
+          fetchOllamaModels(); // Refresh model list
+        }
+      } else {
+        currentPulls.set(model, { status, progress });
+      }
+    }
+
+    function updatePullUI(type, status, progress) {
+      const wrap = $(`${type}-pull-progress-wrap`);
+      const bar = $(`${type}-pull-progress-bar`);
+      const statusLabel = $(`${type}-model-status`);
+      const pullBtn = $(`btn-pull-${type}`);
+      const applyBtn = $(`btn-apply-${type}`);
+
+      if (status === 'error') {
+        statusLabel.textContent = 'Error';
+        statusLabel.style.background = 'var(--danger-bg)';
+        statusLabel.style.color = 'var(--danger)';
+        wrap.style.display = 'none';
+        return;
+      }
+
+      if (status === 'success' || (status === 'pulling' && progress === 100)) {
+        statusLabel.textContent = 'Installed';
+        statusLabel.style.background = 'var(--success-bg)';
+        statusLabel.style.color = 'var(--success)';
+        wrap.style.display = 'none';
+        if (pullBtn) pullBtn.style.display = 'none';
+        if (applyBtn) applyBtn.style.display = 'block';
+        return;
+      }
+
+      if (status === 'pulling' || status.includes('downloading')) {
+        statusLabel.textContent = `Downloading ${progress}%`;
+        statusLabel.style.background = 'var(--brand-50)';
+        statusLabel.style.color = 'var(--brand-500)';
+        wrap.style.display = 'block';
+        bar.style.width = `${progress}%`;
+      } else {
+        statusLabel.textContent = status;
+        statusLabel.style.background = 'var(--neutral-200)';
+        statusLabel.style.color = 'var(--text-3)';
+      }
+    }
+
+    async function fetchOllamaModels() {
+      try {
+        const res = await fetch('/api/ollama/models');
+        if (res.ok) {
+          const data = await res.json();
+          installedModels = (data.models || []).map(m => m.name);
+          
+          // Update dropdowns with available models
+          updateModelDropdowns();
+          
+          // Update UI for both chat and embedding models
+          updateModelStatus('chat', getCurrentModelValue('chat'));
+          updateModelStatus('embed', getCurrentModelValue('embed'));
+          
+          // Store active models from response
+          if (data.active_models) {
+            if (data.active_models.chat_model) {
+              const chatSelect = $('local-chat-model-select');
+              const chatInput = $('local-chat-model-input');
+              if (chatSelect) {
+                chatSelect.value = data.active_models.chat_model;
+                if (!chatSelect.value) {
+                  chatSelect.value = 'custom';
+                  chatInput.value = data.active_models.chat_model;
+                  chatInput.style.display = 'block';
+                  chatSelect.style.display = 'none';
+                }
+              }
+            }
+            if (data.active_models.embedding_model) {
+              const embedSelect = $('local-embed-model-select');
+              const embedInput = $('local-embed-model-input');
+              if (embedSelect) {
+                embedSelect.value = data.active_models.embedding_model;
+                if (!embedSelect.value) {
+                  embedSelect.value = 'custom';
+                  embedInput.value = data.active_models.embedding_model;
+                  embedInput.style.display = 'block';
+                  embedSelect.style.display = 'none';
+                }
+              }
+            }
+          }
+        }
+      } catch (err) { 
+        console.error('Failed to fetch Ollama models', err); 
+      }
+    }
+
+    function updateModelDropdowns() {
+      // Popular models that can be downloaded
+      const popularModels = {
+        chat: [
+          'qwen2.5:7b', 'qwen2.5:14b', 'qwen2.5:32b', 'qwen2.5:72b',
+          'llama3.1:8b', 'llama3.1:70b',
+          'mistral:7b', 'mixtral:8x7b',
+          'codellama:7b', 'deepseek-coder:6.7b',
+          'phi3:mini', 'phi3:medium',
+          'gemma:2b', 'gemma:7b'
+        ],
+        embed: [
+          'nomic-embed-text:latest',
+          'mxbai-embed-large:latest',
+          'all-minilm:latest'
+        ]
+      };
+
+      // Update chat model dropdown
+      const chatSelect = $('local-chat-model-select');
+      if (chatSelect) {
+        // Clear existing options except first two
+        while (chatSelect.options.length > 2) {
+          chatSelect.remove(2);
+        }
+        
+        // Add installed models
+        installedModels.filter(m => !m.includes('embed')).forEach(model => {
+          const option = document.createElement('option');
+          option.value = model;
+          option.textContent = `${model} ✓`;
+          option.style.color = 'var(--success)';
+          chatSelect.appendChild(option);
+        });
+        
+        // Add popular models that aren't installed
+        popularModels.chat.forEach(model => {
+          if (!installedModels.includes(model)) {
+            const option = document.createElement('option');
+            option.value = model;
+            option.textContent = `${model} (Download)`;
+            option.style.color = 'var(--text-2)';
+            chatSelect.appendChild(option);
+          }
+        });
+      }
+
+      // Update embed model dropdown
+      const embedSelect = $('local-embed-model-select');
+      if (embedSelect) {
+        // Clear existing options except first two
+        while (embedSelect.options.length > 2) {
+          embedSelect.remove(2);
+        }
+        
+        // Add installed models
+        installedModels.filter(m => m.includes('embed')).forEach(model => {
+          const option = document.createElement('option');
+          option.value = model;
+          option.textContent = `${model} ✓`;
+          option.style.color = 'var(--success)';
+          embedSelect.appendChild(option);
+        });
+        
+        // Add popular models that aren't installed
+        popularModels.embed.forEach(model => {
+          if (!installedModels.includes(model)) {
+            const option = document.createElement('option');
+            option.value = model;
+            option.textContent = `${model} (Download)`;
+            option.style.color = 'var(--text-2)';
+            embedSelect.appendChild(option);
+          }
+        });
+      }
+    }
+
+    function getCurrentModelValue(type) {
+      const select = $(`local-${type}-model-select`);
+      const input = $(`local-${type}-model-input`);
+      if (select && select.style.display !== 'none') {
+        return select.value === 'custom' ? (input ? input.value : '') : select.value;
+      }
+      return input ? input.value : '';
+    }
+
+    async function checkModelInstalled(modelName) {
+      try {
+        const res = await fetch('/api/ollama/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model_name: modelName })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          return data.installed;
+        }
+      } catch (err) {
+        console.error('Failed to check model:', err);
+      }
+      return false;
+    }
+
+    function updateModelStatus(type, modelName) {
+      if (!modelName) return;
+      const statusLabel = $(`${type}-model-status`);
+      const pullBtn = $(`btn-pull-${type}`);
+      const applyBtn = $(`btn-apply-${type}`);
+      
+      // Check if model name includes tag
+      const variants = [modelName, modelName + ':latest'];
+      const isInstalled = variants.some(v => installedModels.includes(v));
+
+      if (isInstalled) {
+        statusLabel.textContent = 'Installed';
+        statusLabel.style.background = 'var(--success-bg)';
+        statusLabel.style.color = 'var(--success)';
+        if (pullBtn) pullBtn.style.display = 'none';
+        if (applyBtn) applyBtn.style.display = 'block';
+      } else {
+        statusLabel.textContent = 'Not Installed';
+        statusLabel.style.background = 'var(--neutral-200)';
+        statusLabel.style.color = 'var(--text-3)';
+        if (pullBtn) pullBtn.style.display = 'block';
+        if (applyBtn) applyBtn.style.display = 'none';
+      }
+    }
+
+    async function pullSpecificModel(type) {
+      const modelName = $(`local-${type}-model-input`).value.trim();
+      if (!modelName) {
+        toast('Please enter a model name', 'error');
+        return;
+      }
+      
+      // Check if already downloading
+      if (currentPulls.has(modelName)) {
+        toast(`Already downloading ${modelName}`, 'info');
+        return;
+      }
+      
+      try {
+        // Use the background task endpoint to start pull
+        const res = await fetch('/api/ollama/pull', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model_name: modelName })
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          toast(`Started downloading ${modelName}`, 'info');
+          // Initialize UI for download
+          updatePullUI(type, 'pulling', 0);
+          currentPulls.set(modelName, { status: 'pulling', progress: 0 });
+        } else {
+          const error = await res.json();
+          toast(`Failed to start download: ${error.detail || 'Unknown error'}`, 'error');
+        }
+      } catch (err) { 
+        toast('Failed to initiate download: ' + err.message, 'error'); 
+      }
+    }
+
+    async function updateOllamaModels() {
+      const chat = $('local-chat-model-input').value.trim();
+      const embed = $('local-embed-model-input').value.trim();
+      
+      if (!chat || !embed) {
+        toast('Please enter both chat and embedding model names', 'error');
+        return;
+      }
+      
+      try {
+        const res = await fetch(`/api/settings/ollama?chat_model=${encodeURIComponent(chat)}&embedding_model=${encodeURIComponent(embed)}`, {
+          method: 'PATCH'
+        });
+        if (res.ok) {
+          toast('Ollama models updated successfully', 'success');
+          fetchStatus();
+          // Re-check model installation status after update
+          setTimeout(() => {
+            fetchOllamaModels();
+          }, 500);
+        }
+      } catch (err) { 
+        toast('Failed to apply settings', 'error'); 
+      }
+    }
+
+    // Add input event listeners to check model status when user types
+    function initModelInputListeners() {
+      const chatSelect = $('local-chat-model-select');
+      const embedSelect = $('local-embed-model-select');
+      const chatInput = $('local-chat-model-input');
+      const embedInput = $('local-embed-model-input');
+      
+      // Chat model dropdown handlers
+      if (chatSelect) {
+        chatSelect.addEventListener('change', () => {
+          if (chatSelect.value === 'custom') {
+            chatInput.style.display = 'block';
+            chatSelect.style.display = 'none';
+            chatInput.focus();
+          } else {
+            chatInput.style.display = 'none';
+            chatSelect.style.display = 'block';
+            updateModelStatus('chat', chatSelect.value);
+          }
+        });
+      }
+      
+      // Embed model dropdown handlers
+      if (embedSelect) {
+        embedSelect.addEventListener('change', () => {
+          if (embedSelect.value === 'custom') {
+            embedInput.style.display = 'block';
+            embedSelect.style.display = 'none';
+            embedInput.focus();
+          } else {
+            embedInput.style.display = 'none';
+            embedSelect.style.display = 'block';
+            updateModelStatus('embed', embedSelect.value);
+          }
+        });
+      }
+      
+      // Input field handlers (for custom models)
+      if (chatInput) {
+        chatInput.addEventListener('blur', () => {
+          updateModelStatus('chat', chatInput.value.trim());
+        });
+        chatInput.addEventListener('change', () => {
+          updateModelStatus('chat', chatInput.value.trim());
+        });
+        let chatTimeout;
+        chatInput.addEventListener('input', () => {
+          clearTimeout(chatTimeout);
+          chatTimeout = setTimeout(() => {
+            updateModelStatus('chat', chatInput.value.trim());
+          }, 500);
+        });
+      }
+      
+      if (embedInput) {
+        embedInput.addEventListener('blur', () => {
+          updateModelStatus('embed', embedInput.value.trim());
+        });
+        embedInput.addEventListener('change', () => {
+          updateModelStatus('embed', embedInput.value.trim());
+        });
+        let embedTimeout;
+        embedInput.addEventListener('input', () => {
+          clearTimeout(embedTimeout);
+          embedTimeout = setTimeout(() => {
+            updateModelStatus('embed', embedInput.value.trim());
+          }, 500);
+        });
+      }
+    }
+
     /* ── Status polling ─────────────────────────────────────────── */
     /* ─── View Controller ───────────────────────────────────────── */
     function showView(view) {
@@ -2342,18 +2806,29 @@
             $('provider-badge').style.background = isOllama ? 'var(--neutral-100)' : 'var(--brand-50)';
             $('provider-badge').style.color = isOllama ? 'var(--text-2)' : 'var(--brand-500)';
           }
-          if ($('local-model-setting')) $('local-model-setting').style.display = isOllama ? 'block' : 'none';
+          if ($('local-model-setting')) {
+            $('local-model-setting').style.display = isOllama ? 'block' : 'none';
+            if (isOllama) initOllamaWS();
+          }
           if ($('cloud-model-setting')) $('cloud-model-setting').style.display = isOllama ? 'none' : 'block';
 
-          const model = isOllama ? data.ollama_model : (data.chat_model || '—');
+          const model = isOllama ? data.chat_model : (data.chat_model || '—');
           if ($('model-val')) $('model-val').textContent = model.split('/').pop();
           if ($('dash-model')) $('dash-model').textContent = model.split('/').pop();
           if ($('active-model-name')) $('active-model-name').textContent = model;
+          
           if ($('cloud-model-input') && !isOllama && document.activeElement !== $('cloud-model-input')) {
             $('cloud-model-input').value = data.chat_model || '';
           }
-          if ($('local-model-input') && isOllama && document.activeElement !== $('local-model-input')) {
-            $('local-model-input').value = data.ollama_model || 'qwen';
+          if ($('local-chat-model-input') && isOllama && document.activeElement !== $('local-chat-model-input')) {
+            $('local-chat-model-input').value = data.chat_model || 'qwen';
+          }
+          if ($('local-embed-model-input') && isOllama && document.activeElement !== $('local-embed-model-input')) {
+            $('local-embed-model-input').value = data.embedding_model || 'nomic-embed-text';
+          }
+          if (isOllama) {
+            initOllamaWS();
+            fetchOllamaModels();
           }
 
           // OpenAI Key UI Sync
@@ -2398,7 +2873,35 @@
           toast(`${provider === 'ollama' ? 'Local' : 'Cloud'} model updated to ${modelName}`, 'success');
           fetchStatus();
         }
-      } catch (err) { toast('Failed to update model name', 'error'); }
+      } catch (err) { toast('Failed to update model', 'error'); }
+    }
+
+    async function pullOllamaModel() {
+      const modelName = $('pull-model-input').value.trim();
+      if (!modelName) return;
+      
+      $('pull-status').style.display = 'block';
+      $('pull-status').textContent = `Requesting pull for ${modelName}...`;
+      
+      try {
+        const res = await fetch('/api/ollama/pull', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model_name: modelName })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          toast(data.message, 'success');
+          $('pull-status').textContent = 'Pull started in background. Check back soon.';
+          setTimeout(() => { $('pull-status').style.display = 'none'; }, 5000);
+        } else {
+          toast(`Pull failed: ${data.error}`, 'error');
+          $('pull-status').style.display = 'none';
+        }
+      } catch (err) { 
+        toast('Failed to pull model', 'error'); 
+        $('pull-status').style.display = 'none';
+      }
     }
 
     function setOffline() {
@@ -2567,6 +3070,7 @@
     fetchStatus();
     fetchDocs();
     fetchChatHistory();
+    initModelInputListeners();
 
   </script>
 </body>

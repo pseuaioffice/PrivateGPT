@@ -178,6 +178,69 @@ def update_model_settings():
         return jsonify({"error": str(exc)}), 500
 
 
+@app.route("/api/ollama/pull", methods=["POST"])
+def pull_ollama_model():
+    try:
+        resp = requests.post(
+            f"{BACKEND_URL}/ollama/pull",
+            json=request.get_json() or {},
+            timeout=10,
+        )
+        return jsonify(resp.json()), resp.status_code
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/ollama/models")
+def list_ollama_models():
+    try:
+        resp = requests.get(f"{BACKEND_URL}/ollama/models", timeout=10)
+        return jsonify(resp.json()), resp.status_code
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/settings/ollama", methods=["PATCH"])
+def update_ollama_settings():
+    try:
+        # Pass query params forward
+        resp = requests.patch(
+            f"{BACKEND_URL}/settings/ollama",
+            params=request.args,
+            timeout=5,
+        )
+        return jsonify(resp.json()), resp.status_code
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/ollama/check", methods=["POST"])
+def check_ollama_model():
+    """Check if a specific Ollama model is installed."""
+    try:
+        resp = requests.post(
+            f"{BACKEND_URL}/ollama/check",
+            json=request.get_json() or {},
+            timeout=10,
+        )
+        return jsonify(resp.json()), resp.status_code
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/ollama/progress/<model_name>")
+def get_model_progress(model_name):
+    """Get download progress for a specific model."""
+    try:
+        resp = requests.get(
+            f"{BACKEND_URL}/ollama/progress/{model_name}",
+            timeout=5,
+        )
+        return jsonify(resp.json()), resp.status_code
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 500
+
+
 if __name__ == "__main__":
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", 5000))
