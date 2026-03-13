@@ -2459,26 +2459,32 @@
             if (data.active_models.chat_model) {
               const chatSelect = $('local-chat-model-select');
               const chatInput = $('local-chat-model-input');
-              if (chatSelect) {
+              if (chatSelect && document.activeElement !== chatSelect && document.activeElement !== chatInput) {
                 chatSelect.value = data.active_models.chat_model;
                 if (!chatSelect.value) {
                   chatSelect.value = 'custom';
                   chatInput.value = data.active_models.chat_model;
                   chatInput.style.display = 'block';
                   chatSelect.style.display = 'none';
+                } else {
+                  chatInput.style.display = 'none';
+                  chatSelect.style.display = 'block';
                 }
               }
             }
             if (data.active_models.embedding_model) {
               const embedSelect = $('local-embed-model-select');
               const embedInput = $('local-embed-model-input');
-              if (embedSelect) {
+              if (embedSelect && document.activeElement !== embedSelect && document.activeElement !== embedInput) {
                 embedSelect.value = data.active_models.embedding_model;
                 if (!embedSelect.value) {
                   embedSelect.value = 'custom';
                   embedInput.value = data.active_models.embedding_model;
                   embedInput.style.display = 'block';
                   embedSelect.style.display = 'none';
+                } else {
+                  embedInput.style.display = 'none';
+                  embedSelect.style.display = 'block';
                 }
               }
             }
@@ -2654,8 +2660,8 @@
     }
 
     async function updateOllamaModels() {
-      const chat = $('local-chat-model-input').value.trim();
-      const embed = $('local-embed-model-input').value.trim();
+      const chat = getCurrentModelValue('chat').trim();
+      const embed = getCurrentModelValue('embed').trim();
       
       if (!chat || !embed) {
         toast('Please enter both chat and embedding model names', 'error');
@@ -2820,10 +2826,14 @@
           if ($('cloud-model-input') && !isOllama && document.activeElement !== $('cloud-model-input')) {
             $('cloud-model-input').value = data.chat_model || '';
           }
-          if ($('local-chat-model-input') && isOllama && document.activeElement !== $('local-chat-model-input')) {
+          if ($('local-chat-model-input') && isOllama && 
+              document.activeElement !== $('local-chat-model-input') && 
+              document.activeElement !== $('local-chat-model-select')) {
             $('local-chat-model-input').value = data.chat_model || 'qwen';
           }
-          if ($('local-embed-model-input') && isOllama && document.activeElement !== $('local-embed-model-input')) {
+          if ($('local-embed-model-input') && isOllama && 
+              document.activeElement !== $('local-embed-model-input') && 
+              document.activeElement !== $('local-embed-model-select')) {
             $('local-embed-model-input').value = data.embedding_model || 'nomic-embed-text';
           }
           if (isOllama) {
