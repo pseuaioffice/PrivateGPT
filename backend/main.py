@@ -148,24 +148,22 @@ def _index_new_files_on_startup() -> None:
     )
 
     # Load only the new files
-    all_docs = load_documents_from_folder(settings.DOCUMENTS_DIR)
-    new_docs = [d for d in all_docs if d.metadata.get("filename") in new_files]
-
-    if new_docs:
-        chunks = split_documents(new_docs)
+    from indexer import _index_single_file
+    
+    success_count = 0
+    for fn in new_files:
+        filepath = docs_dir / fn
         try:
-            added = add_documents(chunks)
-            logger.info(
-                "Startup indexing complete: %d chunk(s) indexed from %d new file(s). "
-                "Total vectors: %d",
-                added, len(new_files), collection_count(),
-            )
-        except Exception as exc:
-            # Propagate so the lifespan handler can log a clean warning
-            # instead of a full traceback crashing the server.
-            raise RuntimeError(
-                f"Failed to embed {len(new_files)} new file(s): {exc}"
-            ) from exc
+            _index_single_file(str(filepath))
+            success_count += 1
+        except Exception as e:
+            logger.error("Startup indexing failed for %s: %s", fn, e)
+
+    if success_count > 0:
+        logger.info(
+            "Startup indexing complete: %d file(s) indexed. Total vectors: %d",
+            success_count, collection_count()
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -204,9 +202,8 @@ async def lifespan(app: FastAPI):
         _index_new_files_on_startup()
     except Exception as exc:
         logger.warning(
-            "Startup indexing skipped — embedding API error: %s. "
-            "Already-indexed documents are still available. "
-            "New files will be indexed when the rate limit resets.",
+            "Startup indexing skipped or partially failed — %s. "
+            "Existing documents remain accessible.",
             exc,
         )
 
@@ -348,42 +345,36 @@ class OllamaPullRequest(BaseModel):
 @app.post("/ollama/pull", tags=["System"])
 async def pull_ollama_model(request: OllamaPullRequest, background_tasks: BackgroundTasks):
     """Trigger Ollama to pull a model and stream progress via WebSockets."""
-    async def _pull_stream():
-        try:
-            url = f"{settings.OLLAMA_BASE_URL}/api/pull"
-            logger.info("Starting Ollama pull for: %s", request.model_name)
-            
-            # Use requests with stream=True to get progress
-            with requests.post(url, json={"name": request.model_name, "stream": True}, stream=True, timeout=None) as res:
-                res.raise_for_status()
-                for line in res.iter_lines():
-                    if line:
-                        data = json.loads(line)
-                        status = data.get("status", "")
-                        completed = data.get("completed", 0)
-                        total = data.get("total", 0)
-                        
-                        progress = 0
-                        if total > 0:
-                            progress = int((completed / total) * 100)
-                        
-                        await manager.broadcast({
-                            "model": request.model_name,
-                            "status": status,
-                            "progress": progress
-                        })
-                        
-            logger.info("Successfully finished pull task for: %s", request.model_name)
-        except Exception as e:
-            logger.error("Failed override pull model %s: %s", request.model_name, e)
-            await manager.broadcast({
-                "model": request.model_name,
-                "status": "error",
-                "message": str(e)
-            })
+    
+    async def _progress_broadcaster(update: dict):
+        await manager.broadcast(update)
 
-    background_tasks.add_task(_pull_stream)
-    return {"message": f"Started pull for {request.model_name}."}
+    def _start_pull():
+        # model_manager.pull_model is a generator. We need to exhaust it.
+        # We'll use the callback to broadcast via WebSocket.
+        # Since this runs in a thread, we need to bridge to async broadcast.
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        async def _run():
+            try:
+                # We consume the generator here
+                for update in model_manager.pull_model(request.model_name):
+                    await manager.broadcast(update)
+            except Exception as e:
+                logger.error("Error in background pull: %s", e)
+                await manager.broadcast({
+                    "model": request.model_name,
+                    "status": "error",
+                    "message": str(e)
+                })
+        
+        loop.run_until_complete(_run())
+        loop.close()
+
+    background_tasks.add_task(_start_pull)
+    return {"message": f"Started pull for {request.model_name} in background."}
 
 
 @app.get("/ollama/models", tags=["System"])
@@ -573,17 +564,19 @@ async def upload_document(file: UploadFile = File(...)):
         with dest.open("wb") as f:
             shutil.copyfileobj(file.file, f)
         logger.info("Uploaded: %s", dest)
+        
+        # Immediately index the uploaded file
+        from indexer import _index_single_file
+        _index_single_file(str(dest))
+        
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Upload failed: {exc}") from exc
+        logger.error("Upload/Index failed for %s: %s", file.filename, exc)
+        raise HTTPException(status_code=500, detail=f"Failed to process file: {exc}")
     finally:
         file.file.close()
 
-    # Immediately index the uploaded file
-    from indexer import _index_single_file
-    _index_single_file(str(dest))
-
     return {
-        "message": f"File '{file.filename}' uploaded and indexed.",
+        "message": f"File '{file.filename}' uploaded and indexed successfully.",
         "path": str(dest),
         "total_vectors": collection_count(),
     }

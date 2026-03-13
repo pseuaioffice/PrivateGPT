@@ -67,23 +67,45 @@ class _DocumentEventHandler(FileSystemEventHandler):
 
 def _index_single_file(filepath: str) -> None:
     """Load and add a single file to the existing vector store."""
-    from document_loader import load_documents_from_folder, split_documents
+    from document_loader import LOADER_MAP, _sanitise, split_documents
     from pathlib import Path
+    import time
 
     # Give the OS a moment to finish writing the file
     time.sleep(1)
+    
+    filepath_ptr = Path(filepath)
+    ext = filepath_ptr.suffix.lower()
+    loader_cls = LOADER_MAP.get(ext)
+    
+    if not loader_cls:
+        logger.warning("No loader for file type: %s", ext)
+        return
+
     try:
-        folder = str(Path(filepath).parent)
-        docs = load_documents_from_folder(folder)
-        # Filter to only the changed file
-        target = str(Path(filepath).resolve())
-        docs = [d for d in docs if str(Path(d.metadata.get("source", "")).resolve()) == target]
-        chunks = split_documents(docs)
+        logger.info("Indexing single file: %s", filepath)
+        loader = loader_cls(str(filepath))
+        loaded = loader.load()
+        
+        # Sanitise text + attach metadata
+        for doc in loaded:
+            doc.page_content = _sanitise(doc.page_content)
+            doc.metadata.update({
+                "source": str(filepath_ptr.resolve()),
+                "filename": filepath_ptr.name,
+                "filetype": ext.lstrip("."),
+            })
+            
+        chunks = split_documents(loaded)
         if chunks:
             add_documents(chunks)
-            logger.info("Hot-indexed %d chunk(s) from %s.", len(chunks), filepath)
+            logger.info("Successfully indexed %d chunk(s) from %s.", len(chunks), filepath)
+        else:
+            logger.warning("No chunks created from %s.", filepath)
+            
     except Exception as exc:
-        logger.error("Hot-index failed for '%s': %s", filepath, exc)
+        logger.error("Failed to index file '%s': %s", filepath, exc)
+        raise exc # Re-raise so the caller (like /upload) knows it failed
 
 
 _observer: Observer | None = None

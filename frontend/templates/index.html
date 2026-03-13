@@ -87,6 +87,33 @@
       --header-h: 60px;
     }
 
+    [data-theme="dark"] {
+      --neutral-50: #0b0e14;
+      --neutral-100: #141820;
+      --neutral-200: #1e242f;
+      --neutral-300: #2d3644;
+      --neutral-400: #6b7585;
+      --neutral-500: #9aa3b2;
+      --neutral-600: #cdd3df;
+      --neutral-700: #e4e8f0;
+      --neutral-800: #f1f3f7;
+      --neutral-900: #f8f9fb;
+
+      --bg: var(--neutral-50);
+      --surface: var(--neutral-100);
+      --surface-2: var(--neutral-200);
+      --border: var(--neutral-200);
+      --border-strong: var(--neutral-300);
+
+      --text: var(--neutral-800);
+      --text-2: var(--neutral-600);
+      --text-3: var(--neutral-400);
+
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, .3), 0 1px 2px rgba(0, 0, 0, .2);
+      --shadow: 0 4px 12px rgba(0, 0, 0, .4), 0 2px 6px rgba(0, 0, 0, .2);
+      --shadow-lg: 0 12px 48px rgba(0, 0, 0, .6), 0 4px 12px rgba(0, 0, 0, .4);
+    }
+
     /* ─── Global ─────────────────────────────────────────────────────── */
     body {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -777,6 +804,46 @@
       justify-content: center;
       border: 2px solid var(--surface);
       box-shadow: var(--shadow-sm);
+    }
+
+    /* Theme Toggle */
+    .theme-toggle {
+      width: 34px;
+      height: 34px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all .2s;
+      padding: 0;
+      outline: none;
+    }
+
+    .theme-toggle:hover {
+      background: var(--surface-2);
+      color: var(--text);
+      border-color: var(--border-strong);
+    }
+
+    .theme-toggle svg {
+      width: 17px;
+      height: 17px;
+    }
+
+    .theme-toggle .sun-icon {
+      display: none;
+    }
+
+    [data-theme="dark"] .theme-toggle .moon-icon {
+      display: none;
+    }
+
+    [data-theme="dark"] .theme-toggle .sun-icon {
+      display: block;
     }
 
     /* ─── Chat messages ────────────────────────────────────────────── */
@@ -1691,6 +1758,27 @@
       </div>
 
       <div class="topbar-right">
+        <button class="theme-toggle" id="theme-toggle" title="Toggle theme">
+          <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+          <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+        </button>
+
+        <div class="topbar-divider"></div>
+        
         <div class="topbar-stat">
           <span id="tb-vectors">—</span> vectors indexed
         </div>
@@ -2072,6 +2160,24 @@
 
     let isLoading = false;
 
+    /* ── Theme ──────────────────────────────────────────────────── */
+    (function () {
+      const savedTheme = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+
+      window.addEventListener('DOMContentLoaded', () => {
+        const toggle = $('theme-toggle');
+        if (toggle) {
+          toggle.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme');
+            const target = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', target);
+            localStorage.setItem('theme', target);
+          });
+        }
+      });
+    })();
+
     /* ── Utils ──────────────────────────────────────────────────── */
     function now() {
       return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -2409,19 +2515,23 @@
       const pullBtn = $(`btn-pull-${type}`);
       const applyBtn = $(`btn-apply-${type}`);
 
-      if (status === 'error') {
+      if (!statusLabel) return;
+
+      if (status === 'error' || status === 'failed') {
         statusLabel.textContent = 'Error';
         statusLabel.style.background = 'var(--danger-bg)';
         statusLabel.style.color = 'var(--danger)';
-        wrap.style.display = 'none';
+        if (wrap) wrap.style.display = 'none';
         return;
       }
 
-      if (status === 'success' || (status === 'pulling' && progress === 100)) {
+      const isFinished = status === 'success' || (status === 'pulling' && progress === 100) || status === 'done';
+
+      if (isFinished) {
         statusLabel.textContent = 'Installed';
         statusLabel.style.background = 'var(--success-bg)';
         statusLabel.style.color = 'var(--success)';
-        wrap.style.display = 'none';
+        if (wrap) wrap.style.display = 'none';
         if (pullBtn) pullBtn.style.display = 'none';
         if (applyBtn) applyBtn.style.display = 'block';
         return;
@@ -2431,63 +2541,67 @@
         statusLabel.textContent = `Downloading ${progress}%`;
         statusLabel.style.background = 'var(--brand-50)';
         statusLabel.style.color = 'var(--brand-500)';
-        wrap.style.display = 'block';
-        bar.style.width = `${progress}%`;
+        if (wrap) {
+           wrap.style.display = 'block';
+           if (bar) bar.style.width = `${progress}%`;
+        }
       } else {
-        statusLabel.textContent = status;
+        statusLabel.textContent = status || 'Installed';
         statusLabel.style.background = 'var(--neutral-200)';
         statusLabel.style.color = 'var(--text-3)';
       }
     }
+
+    let modelSelectionDirty = { chat: false, embed: false };
 
     async function fetchOllamaModels() {
       try {
         const res = await fetch('/api/ollama/models');
         if (res.ok) {
           const data = await res.json();
-          installedModels = (data.models || []).map(m => m.name);
+          const newModels = (data.models || []).map(m => m.name);
           
-          // Update dropdowns with available models
-          updateModelDropdowns();
+          // Only update if the list changed
+          if (JSON.stringify(newModels) !== JSON.stringify(installedModels)) {
+            installedModels = newModels;
+            updateModelDropdowns();
+          }
           
-          // Update UI for both chat and embedding models
+          // Update status for current selections
           updateModelStatus('chat', getCurrentModelValue('chat'));
           updateModelStatus('embed', getCurrentModelValue('embed'));
           
-          // Store active models from response
+          // Sync from backend ONLY if not dirty and not focused
           if (data.active_models) {
-            if (data.active_models.chat_model) {
-              const chatSelect = $('local-chat-model-select');
-              const chatInput = $('local-chat-model-input');
-              if (chatSelect && document.activeElement !== chatSelect && document.activeElement !== chatInput) {
-                chatSelect.value = data.active_models.chat_model;
-                if (!chatSelect.value) {
-                  chatSelect.value = 'custom';
-                  chatInput.value = data.active_models.chat_model;
-                  chatInput.style.display = 'block';
-                  chatSelect.style.display = 'none';
+            ['chat', 'embed'].forEach(type => {
+              const select = $(`local-${type}-model-select`);
+              const input = $(`local-${type}-model-input`);
+              const backendModel = type === 'chat' ? data.active_models.chat_model : data.active_models.embedding_model;
+              
+              if (!backendModel) return;
+
+              if (!modelSelectionDirty[type] && 
+                  document.activeElement !== select && 
+                  document.activeElement !== input) {
+                
+                // Try setting select value first
+                select.value = backendModel;
+                
+                if (select.value === backendModel) {
+                  // Found in dropdown
+                  input.value = backendModel;
+                  input.style.display = 'none';
+                  select.style.display = 'block';
                 } else {
-                  chatInput.style.display = 'none';
-                  chatSelect.style.display = 'block';
+                  // Custom model
+                  select.value = 'custom';
+                  input.value = backendModel;
+                  input.style.display = 'block';
+                  select.style.display = 'none';
                 }
+                updateModelStatus(type, backendModel);
               }
-            }
-            if (data.active_models.embedding_model) {
-              const embedSelect = $('local-embed-model-select');
-              const embedInput = $('local-embed-model-input');
-              if (embedSelect && document.activeElement !== embedSelect && document.activeElement !== embedInput) {
-                embedSelect.value = data.active_models.embedding_model;
-                if (!embedSelect.value) {
-                  embedSelect.value = 'custom';
-                  embedInput.value = data.active_models.embedding_model;
-                  embedInput.style.display = 'block';
-                  embedSelect.style.display = 'none';
-                } else {
-                  embedInput.style.display = 'none';
-                  embedSelect.style.display = 'block';
-                }
-              }
-            }
+            });
           }
         }
       } catch (err) { 
@@ -2674,84 +2788,62 @@
         });
         if (res.ok) {
           toast('Ollama models updated successfully', 'success');
+          modelSelectionDirty.chat = false;
+          modelSelectionDirty.embed = false;
           fetchStatus();
-          // Re-check model installation status after update
-          setTimeout(() => {
-            fetchOllamaModels();
-          }, 500);
+          // Relax and then re-check
+          setTimeout(fetchOllamaModels, 1000);
         }
       } catch (err) { 
         toast('Failed to apply settings', 'error'); 
       }
     }
 
-    // Add input event listeners to check model status when user types
     function initModelInputListeners() {
       const chatSelect = $('local-chat-model-select');
       const embedSelect = $('local-embed-model-select');
       const chatInput = $('local-chat-model-input');
       const embedInput = $('local-embed-model-input');
       
-      // Chat model dropdown handlers
       if (chatSelect) {
         chatSelect.addEventListener('change', () => {
+          modelSelectionDirty.chat = true;
           if (chatSelect.value === 'custom') {
             chatInput.style.display = 'block';
             chatSelect.style.display = 'none';
             chatInput.focus();
           } else {
-            chatInput.style.display = 'none';
-            chatSelect.style.display = 'block';
+            chatInput.value = chatSelect.value;
             updateModelStatus('chat', chatSelect.value);
           }
         });
       }
       
-      // Embed model dropdown handlers
       if (embedSelect) {
         embedSelect.addEventListener('change', () => {
+          modelSelectionDirty.embed = true;
           if (embedSelect.value === 'custom') {
             embedInput.style.display = 'block';
             embedSelect.style.display = 'none';
             embedInput.focus();
           } else {
-            embedInput.style.display = 'none';
-            embedSelect.style.display = 'block';
+            embedInput.value = embedSelect.value;
             updateModelStatus('embed', embedSelect.value);
           }
         });
       }
       
-      // Input field handlers (for custom models)
       if (chatInput) {
-        chatInput.addEventListener('blur', () => {
-          updateModelStatus('chat', chatInput.value.trim());
-        });
-        chatInput.addEventListener('change', () => {
-          updateModelStatus('chat', chatInput.value.trim());
-        });
-        let chatTimeout;
         chatInput.addEventListener('input', () => {
-          clearTimeout(chatTimeout);
-          chatTimeout = setTimeout(() => {
-            updateModelStatus('chat', chatInput.value.trim());
-          }, 500);
+          modelSelectionDirty.chat = true;
+          updateModelStatus('chat', chatInput.value.trim());
         });
       }
       
       if (embedInput) {
-        embedInput.addEventListener('blur', () => {
-          updateModelStatus('embed', embedInput.value.trim());
-        });
-        embedInput.addEventListener('change', () => {
-          updateModelStatus('embed', embedInput.value.trim());
-        });
-        let embedTimeout;
         embedInput.addEventListener('input', () => {
-          clearTimeout(embedTimeout);
-          embedTimeout = setTimeout(() => {
-            updateModelStatus('embed', embedInput.value.trim());
-          }, 500);
+          modelSelectionDirty.embed = true;
+          updateModelStatus('embed', embedInput.value.trim());
         });
       }
     }
@@ -2838,7 +2930,10 @@
           }
           if (isOllama) {
             initOllamaWS();
-            fetchOllamaModels();
+            // Don't auto-fetch models here if we're in the middle of selection
+            if (!modelSelectionDirty.chat && !modelSelectionDirty.embed) {
+               fetchOllamaModels();
+            }
           }
 
           // OpenAI Key UI Sync
