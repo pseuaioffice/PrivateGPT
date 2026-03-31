@@ -148,28 +148,80 @@ def add_documents(docs: List[Document]) -> int:
     return len(docs)
 
 
-def similarity_search(query: str, k: int = 5) -> List[Document]:
-    """Return the top-k most relevant chunks by cosine similarity."""
+def similarity_search(query: str, k: int = 5, document_name: str | None = None, include_scores: bool = False):
+    """Return the top-k most relevant chunks by cosine similarity.
+    
+    Uses Python-level filtering for reliability (SQLite json_extract can be inconsistent).
+    If document_name is provided, ONLY returns chunks from that document.
+    
+    Args:
+        query: The search query
+        k: Number of results to return
+        document_name: Optional document filename to filter by
+        include_scores: If True, returns (documents, scores) tuple
+    """
     if collection_count() == 0:
-        return []
+        logger.info("Vector store is empty")
+        return ([], []) if include_scores else []
 
     query_emb = _get_embed_fn().embed_query(query)
 
     conn = _get_conn()
+    # Get ALL rows - we'll filter in Python for reliability
     rows = conn.execute("SELECT text, metadata, embedding FROM documents").fetchall()
     conn.close()
 
-    scored = []
-    for text, meta_json, emb_json in rows:
-        emb = json.loads(emb_json)
-        score = _cosine(query_emb, emb)
-        scored.append((score, text, json.loads(meta_json)))
+    logger.info("Retrieved %d total chunks from database", len(rows))
 
+    scored = []
+    filtered_count = 0
+    
+    for text, meta_json, emb_json in rows:
+        try:
+            meta = json.loads(meta_json)
+        except json.JSONDecodeError:
+            logger.warning("Skipping chunk with invalid JSON metadata")
+            continue
+        
+        # Apply document filter if specified
+        if document_name:
+            chunk_filename = meta.get("filename", "")
+            if chunk_filename != document_name:
+                filtered_count += 1
+                continue
+        
+        try:
+            emb = json.loads(emb_json)
+            score = _cosine(query_emb, emb)
+            scored.append((score, text, meta))
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning("Skipping chunk with invalid embedding: %s", e)
+            continue
+
+    # If document filter was applied but no results found, log warning
+    if document_name and not scored:
+        logger.warning("STRICT FILTER: No chunks found for document '%s' (filtered out %d chunks from other docs)", 
+                      document_name, filtered_count)
+        return ([], []) if include_scores else []
+    
+    if document_name:
+        logger.info("STRICT FILTER: Document '%s' - %d relevant chunks (filtered out %d from other docs)", 
+                   document_name, len(scored), filtered_count)
+
+    # Sort by relevance score
     scored.sort(key=lambda x: x[0], reverse=True)
     top = scored[:k]
 
+    # Extract documents and scores
     docs = [Document(page_content=text, metadata=meta) for _, text, meta in top]
-    logger.info("Similarity search returned %d result(s).", len(docs))
+    scores = [score for score, _, _ in top]
+    
+    logger.info("Similarity search returned %d result(s)%s (scores: %s).", len(docs), 
+               f" (filtered to '{document_name}')" if document_name else "",
+               [f"{s:.3f}" for s in scores])
+    
+    if include_scores:
+        return docs, scores
     return docs
 
 

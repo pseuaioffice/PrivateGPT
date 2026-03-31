@@ -1,6 +1,6 @@
-# KnowledgeAI - Setup Guide
+# MyAIAssistant - Setup Guide
 
-This document explains how to set up the KnowledgeAI RAG application on a new system.
+This document explains how to set up the MyAIAssistant RAG application on a new system.
 
 ---
 
@@ -16,8 +16,8 @@ Ensure the following are installed on the system:
 ## 2. Clone the Repository
 
 ```bash
-git clone https://github.com/pseuaioffice/PrivateGPT.git
-cd PrivateGPT
+git clone https://github.com/pseuaioffice/MyAIAssistant.git
+cd MyAIAssistant
 ```
 
 ---
@@ -41,7 +41,7 @@ cd PrivateGPT
    ```
 
 4. **Configure Environment Variables:**
-   Create a `.env` file in the `backend/` directory by copying the example provided below.
+   Copy `backend/.env.example` to `backend/.env` and then edit the values you need.
    
    > [!IMPORTANT]
    > You **must** provide your own `HUGGINGFACE_TOKEN`. Get one at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens).
@@ -66,7 +66,7 @@ cd PrivateGPT
 
 1. **Open a new terminal and navigate to the frontend folder:**
    ```bash
-   cd PrivateGPT/frontend
+   cd MyAIAssistant/frontend
    ```
 
 2. **Create a Virtual Environment (Recommended):**

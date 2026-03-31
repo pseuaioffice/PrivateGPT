@@ -11,6 +11,10 @@ from typing import Dict, List, Optional, Callable
 from dataclasses import dataclass, asdict
 from enum import Enum
 import requests
+import subprocess
+import sys
+import os
+import time
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -55,7 +59,11 @@ class ModelManager:
         if self._initialized:
             return
         self._initialized = True
-        self._db_path = f"{settings.CHROMA_PERSIST_DIR}/model_config.db"
+        # Read CHROMA_PERSIST_DIR from the environment at init time (not import time).
+        # This ensures the path is the correct absolute installed path set by backend_entry.py,
+        # not a stale relative or temp path from module load time.
+        persist_dir = settings.CHROMA_PERSIST_DIR
+        self._db_path = os.path.join(persist_dir, 'model_config.db')
         self._ensure_db()
         self._download_progress: Dict[str, Dict] = {}
         self._progress_callbacks: List[Callable] = []
@@ -96,13 +104,18 @@ class ModelManager:
     def get_config(self, key: str, default: str = "") -> str:
         """Get a configuration value."""
         conn = self._get_conn()
+        res = default
         try:
             row = conn.execute(
                 "SELECT value FROM model_config WHERE key = ?", (key,)
             ).fetchone()
-            return row[0] if row else default
+            if row:
+                res = row[0]
+        except Exception as e:
+            logger.error("Failed to get config %s: %s", key, e)
         finally:
             conn.close()
+        return res
     
     def set_config(self, key: str, value: str):
         """Set a configuration value."""
@@ -148,7 +161,7 @@ class ModelManager:
         """List all models installed in Ollama."""
         try:
             url = f"{self._ollama_url}/api/tags"
-            res = requests.get(url, timeout=10)
+            res = requests.get(url, timeout=5)
             res.raise_for_status()
             data = res.json()
             
@@ -167,8 +180,14 @@ class ModelManager:
             self._update_model_cache(models)
             return models
             
-        except Exception as e:
+        except requests.exceptions.ConnectionError as e:
+            logger.warning("Ollama not running at %s: %s", self._ollama_url, e)
+            return []
+        except requests.exceptions.RequestException as e:
             logger.error("Failed to list Ollama models: %s", e)
+            return []
+        except Exception as e:
+            logger.error("Unexpected error listing Ollama models: %s", e)
             return []
     
     def check_model_exists(self, model_name: str) -> bool:
@@ -315,19 +334,23 @@ class ModelManager:
     def get_cached_models(self) -> List[ModelInfo]:
         """Get models from local cache."""
         conn = self._get_conn()
+        res = []
         try:
             rows = conn.execute(
                 "SELECT name, size, modified_at, digest, model_type, status FROM ollama_models"
             ).fetchall()
-            return [
+            res = [
                 ModelInfo(
                     name=r[0], size=r[1], modified_at=r[2],
                     digest=r[3], model_type=r[4] or "chat", status=r[5]
                 )
                 for r in rows
             ]
+        except Exception as e:
+            logger.error("Failed to get cached models: %s", e)
         finally:
             conn.close()
+        return res
     
     def delete_model(self, model_name: str) -> bool:
         """Delete a model from Ollama."""
@@ -362,6 +385,34 @@ class ModelManager:
             logger.error("Failed to get model details for %s: %s", model_name, e)
             return None
 
+    def is_ollama_running(self) -> bool:
+        """Check if Ollama API is responsive."""
+        try:
+            res = requests.get(f"{self._ollama_url}/api/tags", timeout=3)
+            return res.status_code == 200
+        except requests.exceptions.ConnectionError:
+            return False
+        except requests.exceptions.RequestException:
+            return False
+        except Exception:
+            return False
 
-# Singleton instance
-model_manager = ModelManager()
+
+# Lazy singleton — do NOT instantiate at import time.
+# backend_entry.py sets CHROMA_PERSIST_DIR *after* Python imports are done.
+# Instantiating here would lock in a wrong/temp path before the env is ready.
+_model_manager_instance = None
+
+def _get_model_manager() -> 'ModelManager':
+    global _model_manager_instance
+    if _model_manager_instance is None:
+        _model_manager_instance = ModelManager()
+    return _model_manager_instance
+
+# Provide a proxy object so that existing code using `model_manager.xxx` still works
+class _ModelManagerProxy:
+    """Transparent proxy that defers ModelManager creation until first attribute access."""
+    def __getattr__(self, name):
+        return getattr(_get_model_manager(), name)
+
+model_manager = _ModelManagerProxy()

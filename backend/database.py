@@ -8,17 +8,18 @@ chat_sessions + chat_messages tables if they don't exist yet.
 Falls back gracefully when PostgreSQL is not configured.
 """
 import logging
-import psycopg2
-import psycopg2.extras
-from psycopg2 import pool as pg_pool
-from typing import Optional
+from typing import Optional, Any
 
 from config import settings
 
 logger = logging.getLogger(__name__)
 
 # Module-level connection pool (None if DB is not configured/reachable)
-_pool: Optional[pg_pool.SimpleConnectionPool] = None
+_pool: Optional[Any] = None
+
+# We use global references that are securely mapped inside init_db()
+pg_pool = None
+psycopg2 = None
 
 
 # ── Schema ──────────────────────────────────────────────────────────────────
@@ -55,13 +56,25 @@ def init_db() -> bool:
     Initialise the connection pool and create tables.
     Returns True on success, False if DB is not configured or unreachable.
     """
-    global _pool
+    global _pool, pg_pool, psycopg2
     dsn = getattr(settings, "DATABASE_URL", None)
     if not dsn:
         logger.info("DATABASE_URL not set — chat history disabled.")
         return False
+        
     try:
-        _pool = pg_pool.SimpleConnectionPool(1, 10, dsn)
+        import psycopg2
+        import psycopg2.extras
+        from psycopg2 import pool as pg_pool
+    except ImportError as e:
+        logger.warning(
+            "PostgreSQL drivers not found (Missing psycopg2 or system DLLs). "
+            "Chat history will be gracefully disabled. Error: %s", e
+        )
+        return False
+        
+    try:
+        _pool = pg_pool.SimpleConnectionPool(1, 5, dsn, connect_timeout=5)
         conn = _pool.getconn()
         try:
             with conn.cursor() as cur:
@@ -73,6 +86,14 @@ def init_db() -> bool:
         return True
     except Exception as e:
         logger.warning("PostgreSQL unavailable (%s) — chat history disabled.", e)
+        # Explicitly close the pool so psycopg2's background threads stop.
+        # Leaving a broken pool open causes it to keep retrying in the background
+        # and eventually crash the backend process after 30-60 seconds.
+        if _pool is not None:
+            try:
+                _pool.closeall()
+            except Exception:
+                pass
         _pool = None
         return False
 

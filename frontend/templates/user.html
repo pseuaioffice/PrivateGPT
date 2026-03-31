@@ -4,13 +4,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PrivateGPT — Enterprise Document Intelligence</title>
+  <title>MyAIAssistant — Enterprise Document Intelligence</title>
   <meta name="description" content="Enterprise-grade AI document intelligence powered by GPT-4o and RAG technology." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap"
     rel="stylesheet" />
+  <!-- Markdown & Syntax Highlighting -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" id="hljs-theme-light">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" id="hljs-theme-dark" disabled>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
   <style>
     /* ─── Reset ────────────────────────────────────────────────────── */
     *,
@@ -41,14 +47,14 @@
       --neutral-900: #0f1320;
 
       /* Brand */
-      --brand-50: #eef1ff;
-      --brand-100: #dce2ff;
-      --brand-200: #bbc9ff;
-      --brand-400: #7b93f5;
-      --brand-500: #4f6ef2;
-      --brand-600: #3553e8;
-      --brand-700: #2a43d4;
-      --brand-800: #2036b0;
+      --brand-50: #ecfeff;
+      --brand-100: #cffafe;
+      --brand-200: #a5f3fc;
+      --brand-400: #22d3ee;
+      --brand-500: #06b6d4;
+      --brand-600: #0891b2;
+      --brand-700: #0e7490;
+      --brand-800: #155e75;
 
       /* Semantic */
       --success: #10b981;
@@ -501,9 +507,52 @@
       color: #065f46;
     }
 
+    .doc-type-badge.xls,
+    .doc-type-badge.xlsx {
+      background: #dcfce7;
+      color: #166534;
+    }
+
     .doc-type-badge.other {
       background: #f3f4f6;
       color: #6b7280;
+    }
+
+    .doc-status-badge {
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .doc-status-badge.uploaded,
+    .doc-status-badge.queued {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .doc-status-badge.indexing {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .doc-status-badge.indexed,
+    .doc-status-badge.available {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .doc-status-badge.indexed_only {
+      background: #e5e7eb;
+      color: #4b5563;
+    }
+
+    .doc-status-badge.error {
+      background: #fee2e2;
+      color: #b91c1c;
     }
 
     .doc-name {
@@ -519,6 +568,115 @@
       font-size: 12px;
       color: var(--text-3);
       padding: 8px 10px;
+    }
+
+    /* Model selector in sidebar */
+    .model-selector-wrap {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .model-selector-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: background .15s;
+      user-select: none;
+      gap: 8px;
+    }
+
+    .model-selector-header:hover {
+      background: var(--surface);
+    }
+
+    .model-selector-active {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .model-active-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      flex-shrink: 0;
+      box-shadow: 0 0 0 2px #10b98130;
+    }
+
+    .model-active-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .model-caret {
+      flex-shrink: 0;
+      color: var(--text-3);
+      transition: transform .2s;
+    }
+
+    .model-selector-wrap.open .model-caret {
+      transform: rotate(180deg);
+    }
+
+    .model-dropdown {
+      display: none;
+      border-top: 1px solid var(--border);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .model-selector-wrap.open .model-dropdown {
+      display: block;
+    }
+
+    .model-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text-2);
+      transition: background .1s;
+    }
+
+    .model-option:hover {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .model-option.active-model {
+      color: var(--brand-600);
+      font-weight: 600;
+      background: var(--brand-50);
+    }
+
+    .model-option.active-model::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      flex-shrink: 0;
+    }
+
+    .model-loading-msg {
+      font-size: 11px;
+      color: var(--text-3);
+      padding: 8px 12px;
+      font-style: italic;
     }
 
     /* Sidebar footer */
@@ -794,8 +952,8 @@
     /* Message row */
     .msg-row {
       display: flex;
-      gap: 14px;
-      padding: 16px 0;
+      gap: 16px;
+      padding: 24px 0;
       border-bottom: 1px solid transparent;
       animation: msgIn .22s ease;
     }
@@ -851,7 +1009,7 @@
     .msg-body {
       flex: 1;
       min-width: 0;
-      max-width: 740px;
+      max-width: 800px; /* Wider for ChatGPT style */
     }
 
     .msg-row.user .msg-body {
@@ -861,90 +1019,41 @@
     }
 
     .msg-meta {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      margin-bottom: 6px;
-    }
-
-    .msg-row.user .msg-meta {
-      flex-direction: row-reverse;
-    }
-
-    .msg-sender {
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    .msg-time {
-      font-size: 11px;
-      color: var(--text-3);
+      display: none; /* Hide sender/time meta like ChatGPT */
     }
 
     .bubble {
-      padding: 12px 16px;
-      border-radius: var(--radius-lg);
-      font-size: 14px;
-      line-height: 1.7;
+      font-size: 15px;
+      line-height: 1.65;
       word-break: break-word;
       max-width: 100%;
+      color: var(--text);
     }
 
     .bubble.user {
-      background: var(--brand-500);
-      color: #fff;
-      border-bottom-right-radius: var(--radius-xs);
+      background: var(--surface-2);
+      padding: 12px 18px;
+      border-radius: 18px;
+      border-bottom-right-radius: 4px;
+      display: inline-block;
+      margin-top: 4px;
     }
 
+    /* AI message has no background bubble, just flows naturally */
     .bubble.bot {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-bottom-left-radius: var(--radius-xs);
-      box-shadow: var(--shadow-sm);
+      background: transparent;
+      padding: 4px 0 0 0;
     }
 
     .bubble.error {
-      background: var(--danger-bg);
-      border: 1px solid #fecaca;
-      color: #b91c1c;
-      border-bottom-left-radius: var(--radius-xs);
+      background: transparent;
+      color: var(--danger);
+      padding: 4px 0;
     }
 
     /* ── Rich response formatting ─────────────────────────────── */
-    .bubble.bot .resp-kv-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 8px 0;
-      font-size: 13.5px;
-    }
-
-    .bubble.bot .resp-kv-table tr:not(:last-child) td {
-      border-bottom: 1px solid var(--border);
-    }
-
-    .bubble.bot .resp-kv-table td {
-      padding: 6px 10px 6px 0;
-      vertical-align: top;
-      line-height: 1.5;
-    }
-
-    .bubble.bot .resp-kv-table td:first-child {
-      font-weight: 600;
-      white-space: nowrap;
-      padding-right: 16px;
-      width: 1%;
-      color: var(--brand-700);
-    }
-
-    .bubble.bot .resp-kv-table td:last-child {
-      color: var(--text-2);
-    }
-
     .bubble.bot p {
-      margin: 0 0 8px;
-      line-height: 1.7;
+      margin: 0 0 16px 0;
     }
 
     .bubble.bot p:last-child {
@@ -960,19 +1069,39 @@
       font-style: italic;
     }
 
-    .bubble.bot code {
-      font-family: 'Menlo', 'Consolas', monospace;
-      font-size: 12.5px;
+    /* Inline code */
+    .bubble.bot p code, 
+    .bubble.bot li code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13.5px;
       background: var(--surface-2);
-      border: 1px solid var(--border);
+      padding: 2px 5px;
       border-radius: 4px;
-      padding: 1px 5px;
+      color: var(--text);
+    }
+
+    /* Code blocks */
+    .bubble.bot pre {
+      background: var(--neutral-800);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      margin: 16px 0;
+      overflow-x: auto;
+    }
+
+    .bubble.bot pre code {
+      color: #e4e8f0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 13.5px;
+      background: transparent;
+      padding: 0;
+      border: none;
     }
 
     .bubble.bot ul,
     .bubble.bot ol {
-      padding-left: 20px;
-      margin: 6px 0;
+      padding-left: 24px;
+      margin: 0 0 16px 0;
     }
 
     .bubble.bot li {
@@ -982,20 +1111,26 @@
 
     .bubble.bot h3,
     .bubble.bot h4 {
-      font-size: 13.5px;
-      font-weight: 700;
+      font-size: 16px;
+      font-weight: 600;
       color: var(--text);
-      margin: 10px 0 4px;
+      margin: 24px 0 8px;
+    }
+
+    .bubble.bot h1,
+    .bubble.bot h2 {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 28px 0 12px;
     }
 
     .bubble.bot blockquote {
-      border-left: 3px solid var(--brand-400);
-      margin: 8px 0;
-      padding: 4px 12px;
+      border-left: 3px solid var(--border-strong);
+      margin: 16px 0;
+      padding: 4px 16px;
       color: var(--text-2);
       font-style: italic;
-      background: var(--brand-50);
-      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
     }
 
     .bubble.bot hr {
@@ -1227,7 +1362,6 @@
       background: var(--surface);
       box-shadow: var(--shadow-sm);
       transition: border-color .2s, box-shadow .2s;
-      overflow: hidden;
     }
 
     .input-card:focus-within {
@@ -1266,8 +1400,8 @@
     }
 
     #send-btn {
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
       border-radius: var(--radius-sm);
       border: none;
       background: var(--brand-500);
@@ -1277,25 +1411,272 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: background .15s, transform .1s, opacity .2s;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: var(--shadow-sm);
     }
 
     #send-btn svg {
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
     }
 
-    #send-btn:hover:not(:disabled) {
+    #send-btn:hover:not(.loading) {
       background: var(--brand-600);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
     }
 
-    #send-btn:active:not(:disabled) {
-      transform: scale(.93);
+    #send-btn:active:not(.loading) {
+      transform: translateY(0) scale(.95);
     }
 
-    #send-btn:disabled {
+    #send-btn.loading {
+      background: var(--danger);
+      animation: stopPulse 2s infinite;
+    }
+
+    #send-btn.loading:hover {
+      background: #dc2626;
+    }
+
+    @keyframes stopPulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    #send-btn:disabled:not(.loading) {
       opacity: .4;
       cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    /* Document selector */
+    .document-selector-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-top: 1px solid var(--border);
+      background: var(--surface-2);
+      flex-wrap: wrap;
+    }
+
+    .document-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .document-selector {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      border-radius: var(--radius-xs);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text);
+      cursor: pointer;
+      transition: all .15s;
+      max-width: 280px;
+    }
+
+    .document-selector:hover {
+      border-color: var(--brand-400);
+      background: var(--brand-50);
+    }
+
+    .document-selector.strict-mode {
+      border-color: var(--warn);
+      background: var(--warn-bg);
+    }
+
+    .document-selector.strict-mode:hover {
+      border-color: #f59e0b;
+      background: #fef3c7;
+    }
+
+    #selected-doc-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .strict-mode-badge {
+      display: none;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: var(--warn);
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+    }
+
+    .document-selector.strict-mode .strict-mode-badge {
+      display: inline-block;
+    }
+
+    .document-selector svg {
+      width: 12px;
+      height: 12px;
+      color: var(--text-3);
+      flex-shrink: 0;
+    }
+
+    .document-dropdown {
+      display: none;
+      position: absolute;
+      bottom: 100%;
+      left: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      max-height: 250px;
+      overflow-y: auto;
+      min-width: 400px;
+      z-index: 1000;
+      margin-bottom: 4px;
+    }
+
+    .document-dropdown::-webkit-scrollbar {
+      width: 12px;
+    }
+
+    .document-dropdown::-webkit-scrollbar-track {
+      background: var(--surface-2);
+      border-radius: 6px;
+    }
+
+    .document-dropdown::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border-radius: 6px;
+      border: 2px solid var(--surface-2);
+    }
+
+    .document-dropdown::-webkit-scrollbar-thumb:hover {
+      background: var(--text-2);
+    }
+
+    .document-dropdown.visible {
+      display: block;
+    }
+
+    .doc-dropdown-item {
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: background .15s ease, color .15s ease;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .doc-dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .doc-dropdown-item:hover {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    .doc-dropdown-item.selected {
+      background: var(--brand-50);
+      color: var(--brand-600);
+      font-weight: 700;
+    }
+
+    .doc-dropdown-item.selected:hover {
+      background: var(--brand-100);
+      color: var(--brand-700);
+    }
+
+    .doc-dropdown-item.all-docs {
+      background: var(--surface-2);
+      font-weight: 600;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .doc-dropdown-item.all-docs:hover {
+      background: var(--surface-2);
+      color: var(--text-2);
+    }
+
+    /* Dark mode specific fixes for dropdown items */
+    [data-theme="dark"] .doc-dropdown-item {
+      color: var(--text);
+      background: var(--surface);
+    }
+
+    [data-theme="dark"] .doc-dropdown-item:hover {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    .doc-chat-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-xs);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-2);
+      cursor: pointer;
+      transition: all .15s;
+      flex-shrink: 0;
+      padding: 0;
+      outline: none;
+    }
+
+    .doc-chat-btn:hover {
+      background: var(--brand-50);
+      border-color: var(--brand-400);
+      color: var(--brand-600);
+    }
+
+    .doc-chat-btn:active {
+      transform: scale(0.95);
+    }
+
+    .doc-chat-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    /* Indexed-only files styling */
+    .doc-dropdown-item.indexed-only {
+      opacity: 0.7;
+      font-style: italic;
+      background: var(--surface-2);
+    }
+
+    .doc-dropdown-item.indexed-only:hover {
+      opacity: 0.9;
+      background: var(--surface-3);
+    }
+
+    .doc-dropdown-item.indexed-only .doc-chat-btn {
+      display: none;
     }
 
     .input-bottom {
@@ -1305,6 +1686,7 @@
       padding: 8px 14px;
       border-top: 1px solid var(--border);
       background: var(--surface-2);
+      border-radius: 0 0 calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px);
     }
 
     .input-hint {
@@ -1444,18 +1826,21 @@
 
     <div class="sidebar-brand">
       <div class="brand-logo">
-        <!-- Logo: neural-ish icon -->
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"
-          stroke-linejoin="round">
-          <circle cx="12" cy="4" r="2" />
-          <circle cx="4" cy="20" r="2" />
-          <circle cx="20" cy="20" r="2" />
-          <line x1="12" y1="6" x2="4" y2="18" />
-          <line x1="12" y1="6" x2="20" y2="18" />
-          <line x1="4" y1="18" x2="20" y2="18" />
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="myai-grad-user" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#0f172a" />
+              <stop offset="100%" stop-color="#06b6d4" />
+            </linearGradient>
+          </defs>
+          <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#myai-grad-user)" />
+          <path d="M7.5 17L12 7l4.5 10" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round"
+            stroke-linejoin="round" />
+          <path d="M9.5 12.5h5" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" />
+          <circle cx="17.3" cy="7.2" r="1.4" fill="#7dd3fc" />
         </svg>
       </div>
-      <span class="brand-name">PrivateGPT</span>
+      <span class="brand-name">MyAIAssistant</span>
       <span class="brand-badge">Enterprise</span>
     </div>
 
@@ -1500,8 +1885,8 @@
             </svg>
           </div>
           <div class="upload-title">Drop files here</div>
-          <div class="upload-sub">PDF · DOCX · TXT · MD · CSV</div>
-          <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md,.csv" />
+          <div class="upload-sub">PDF · DOCX · TXT · MD · CSV · XLS · XLSX</div>
+          <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md,.csv,.xls,.xlsx" multiple />
           <div class="progress-bar-wrap" id="prog-wrap">
             <div class="progress-bar-fill" id="prog-bar"></div>
           </div>
@@ -1519,6 +1904,25 @@
         </div>
       </div>
 
+      <!-- Model Selector -->
+      <div class="sidebar-section" id="model-section">
+        <div class="sidebar-section-label">AI Model</div>
+        <div class="model-selector-wrap" id="model-selector-wrap">
+          <div class="model-selector-header" id="model-selector-trigger">
+            <div class="model-selector-active">
+              <div class="model-active-dot" id="model-active-dot"></div>
+              <span class="model-active-name" id="model-active-name">Loading…</span>
+            </div>
+            <svg class="model-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
+          <div class="model-dropdown" id="model-dropdown">
+            <div class="model-loading-msg">Loading models…</div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /sidebar-body -->
 
 
@@ -1531,7 +1935,7 @@
     <!-- Topbar -->
     <div class="topbar">
       <div class="topbar-breadcrumb">
-        <span class="bc-item">PrivateGPT</span>
+        <span class="bc-item">MyAIAssistant</span>
         <span class="bc-sep">/</span>
         <span class="bc-item active">Document Assistant</span>
       </div>
@@ -1606,13 +2010,31 @@
       <div class="input-card">
         <div class="input-top">
           <textarea id="user-input" placeholder="Message Document Assistant..." rows="1"></textarea>
-          <button id="send-btn" aria-label="Send">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-              stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
+          <button id="send-btn" onclick="handleSendClick()" title="Send message">
+            <span id="send-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            </span>
+            <span id="stop-icon" style="display:none">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <rect x="6" y="6" width="12" height="12" rx="2" />
+              </svg>
+            </span>
           </button>
+        </div>
+        <div class="document-selector-wrap" style="position: relative;">
+          <span class="document-label">Search in:</span>
+          <div class="document-selector" id="doc-selector" onclick="toggleDocDropdown()" title="Select a document to search in">
+            <span id="selected-doc-name">All Documents</span>
+            <span class="strict-mode-badge">Strict Mode</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+          <div class="document-dropdown" id="doc-dropdown"></div>
         </div>
         <div class="input-bottom">
           <div class="input-hint">Search is grounded in indexed documents</div>
@@ -1643,8 +2065,149 @@
     const messages = $('messages');
     const userInput = $('user-input');
     const sendBtn = $('send-btn');
+    const stopBtn = $('stop-btn');
 
     let isLoading = false;
+    let abortController = null;
+    let activeModelName = null; // tracks currently selected model
+    let selectedDocument = null; // tracks currently selected document
+
+    function handleSendClick() {
+      if (isLoading) {
+        stopMessage();
+      } else {
+        sendMessage();
+      }
+    }
+
+    function stopMessage() {
+      if (abortController) {
+        abortController.abort();
+        abortController = null;
+        toast('Response cancelled', 'info');
+        if (typeof activeChatUUID !== 'undefined' && activeChatUUID) {
+          fetch('/api/chat/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_uuid: activeChatUUID })
+          }).catch(e => console.error('Error cancelling chat on server:', e));
+        }
+      }
+    }
+
+    /* ── Document selector ──────────────────────────────────────── */
+    async function fetchDocuments() {
+      try {
+        const res = await fetch('/api/documents');
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
+        const data = await res.json();
+        const dropdown = $('doc-dropdown');
+        
+        console.log('📄 API Response:', data);
+        
+        if (!data.documents || data.documents.length === 0) {
+          dropdown.innerHTML = '<div class="doc-dropdown-item" style="color: var(--text-3); padding: 16px; text-align: center;">No documents uploaded</div>';
+          console.warn('⚠️  No documents in API response');
+          return;
+        }
+
+        console.log(`✅ Found ${data.documents.length} documents:`, data.documents.map(d => d.filename).join(', '));
+
+        // Build dropdown HTML
+        let html = '<div class="doc-dropdown-item all-docs" onclick="selectDocument(null, \'All Documents\')">📚 All Documents</div>';
+        
+        // Add each document
+        data.documents.forEach((doc, idx) => {
+          const isSelected = selectedDocument === doc.filename;
+          const displayName = doc.filename;
+          const isIndexedOnly = doc.status === 'indexed_only';
+          const sizeKB = (doc.size_bytes / 1024).toFixed(1);
+          const statusIcon = isIndexedOnly ? '🔍' : '📄';
+          const statusText = isIndexedOnly ? 'Indexed only' : `${sizeKB}KB`;
+          const titleText = isIndexedOnly ? 
+            `${esc(doc.filename)} (Indexed but file not found on disk)` : 
+            `${esc(doc.filename)} (${sizeKB}KB)`;
+          const rawFilename = encodeURIComponent(doc.filename);
+          const rawDisplay = encodeURIComponent(displayName);
+
+          html += `
+            <div class="doc-dropdown-item${isSelected ? ' selected' : ''}${isIndexedOnly ? ' indexed-only' : ''}" 
+                 onclick="selectDocument(decodeURIComponent('${rawFilename}'), decodeURIComponent('${rawDisplay}'))" 
+                 title="${titleText}"
+                 data-index="${idx}">
+              <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: inherit;">
+                ${statusIcon} ${esc(displayName)}
+              </span>
+              <span style="font-size: 11px; color: var(--text-3); margin-right: 8px; flex-shrink: 0;">
+                ${statusText}
+              </span>
+              ${!isIndexedOnly ? `
+              <button class="doc-chat-btn" 
+                      onclick="event.stopPropagation(); chatWithDocument(decodeURIComponent('${rawFilename}'))" 
+                      title="Chat with this document">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </button>
+              ` : ''}
+            </div>
+          `;
+        });
+        
+        dropdown.innerHTML = html;
+        console.log(`✅ Rendered ${data.documents.length} documents in dropdown`);
+        
+      } catch (err) {
+        const dropdown = $('doc-dropdown');
+        dropdown.innerHTML = '<div class="doc-dropdown-item" style="color: var(--danger); padding: 16px;">❌ Error loading documents</div>';
+        console.error('❌ Failed to fetch documents:', err);
+      }
+    }
+
+    function toggleDocDropdown() {
+      const dropdown = $('doc-dropdown');
+      dropdown.classList.toggle('visible');
+      if (dropdown.classList.contains('visible')) {
+        fetchDocuments();
+      }
+    }
+
+    function selectDocument(filename, displayName) {
+      selectedDocument = filename;
+      $('selected-doc-name').textContent = displayName;
+      const selector = $('doc-selector');
+      
+      // Toggle strict mode class
+      if (filename === null) {
+        // All Documents - flexible mode
+        selector.classList.remove('strict-mode');
+        toast(`📂 Searching in: All Documents`, 'info');
+      } else {
+        // Specific document - strict mode
+        selector.classList.add('strict-mode');
+        toast(`🔒 Strict Mode: Only searching in "${displayName}"`, 'info');
+      }
+      
+      $('doc-dropdown').classList.remove('visible');
+    }
+
+    function chatWithDocument(filename) {
+      selectDocument(filename, filename);
+      userInput.focus();
+      userInput.placeholder = `Ask about ${filename}...`;
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function (e) {
+      const selector = $('doc-selector');
+      const dropdown = $('doc-dropdown');
+      if (!selector.contains(e.target) && !dropdown.contains(e.target)) {
+        dropdown.classList.remove('visible');
+      }
+    });
 
     /* ── Theme ──────────────────────────────────────────────────── */
     (function () {
@@ -1659,9 +2222,23 @@
             const target = current === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', target);
             localStorage.setItem('theme', target);
+            updateHighlightTheme(target);
           });
         }
+        updateHighlightTheme(savedTheme);
       });
+
+      function updateHighlightTheme(theme) {
+        const lightLink = document.getElementById('hljs-theme-light');
+        const darkLink = document.getElementById('hljs-theme-dark');
+        if (theme === 'dark') {
+          lightLink.disabled = true;
+          darkLink.disabled = false;
+        } else {
+          lightLink.disabled = false;
+          darkLink.disabled = true;
+        }
+      }
     })();
 
     /* ── Utils ──────────────────────────────────────────────────── */
@@ -1685,10 +2262,24 @@
     }
 
     function getTypeBadge(ext) {
-      const valid = ['pdf', 'docx', 'txt', 'md', 'csv'];
+      const valid = ['pdf', 'docx', 'txt', 'md', 'csv', 'xls', 'xlsx'];
       const clean = ext.toLowerCase().replace('.', '');
       const clss = valid.includes(clean) ? clean : 'other';
       return `<span class="doc-type-badge ${clss}">${clean.toUpperCase() || 'FILE'}</span>`;
+    }
+
+    function getStatusBadge(status, error = '') {
+      const clean = (status || 'uploaded').toLowerCase();
+      const labels = {
+        uploaded: 'Uploaded',
+        queued: 'Queued',
+        indexing: 'Indexing',
+        indexed: 'Indexed',
+        indexed_only: 'Indexed only',
+        available: 'Indexed',
+        error: 'Error',
+      };
+      return `<span class="doc-status-badge ${clean}" title="${esc(error || labels[clean] || clean)}">${labels[clean] || clean}</span>`;
     }
 
     function toast(msg, type = 'info') {
@@ -1712,11 +2303,11 @@
     userInput.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        sendMessage();
+        handleSendClick();
       }
     });
 
-    sendBtn.addEventListener('click', sendMessage);
+    sendBtn.addEventListener('click', handleSendClick);
 
     /* ── UUID helpers ───────────────────────────────────────────── */
     function genUUID() {
@@ -1773,7 +2364,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
           </div>`;
 
-      const senderName = role === 'user' ? 'You' : 'PrivateGPT';
+      const senderName = role === 'user' ? 'You' : 'MyAIAssistant';
 
       let sourcesHTML = '';
       if (sources && sources.length) {
@@ -1835,7 +2426,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
-        <div style="font-size:12.5px;font-weight:600;color:var(--text)">PrivateGPT</div>
+        <div style="font-size:12.5px;font-weight:600;color:var(--text)">MyAIAssistant</div>
         <div class="typing-dots"><span></span><span></span><span></span></div>
       </div>`;
       messages.appendChild(typingRow);
@@ -1846,36 +2437,23 @@
     }
 
     /* ── Basic markdown ─────────────────────────────────────────── */
-    function formatResponse(text) {
-      let html = esc(text);
-      html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-      html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
-      html = html.replace(/`(.*?)`/g, '<code>$1</code>');
-      const lines = html.split('\n');
-      let inList = false;
-      let out = [];
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line.match(/^[-*]\s+/)) {
-          if (!inList) { out.push('<ul>'); inList = true; }
-          out.push(`<li>${line.replace(/^[-*]\s+/, '')}</li>`);
-        } else if (line.match(/^\d+\.\s+/)) {
-          if (!inList) { out.push('<ol>'); inList = true; }
-          out.push(`<li>${line.replace(/^\d+\.\s+/, '')}</li>`);
-        } else {
-          if (inList) {
-            const last = out[out.length - 1];
-            if (last.startsWith('<li>')) out.push(last.includes('</ol>') ? '</ol>' : '</ul>');
-            inList = false;
+    if (typeof marked !== 'undefined') {
+      marked.setOptions({
+        highlight: function(code, lang) {
+          if (lang && hljs.getLanguage(lang)) {
+            return hljs.highlight(code, { language: lang }).value;
           }
-          if (line.startsWith('### ')) out.push(`<h4>${line.substring(4)}</h4>`);
-          else if (line.startsWith('> ')) out.push(`<blockquote>${line.substring(2)}</blockquote>`);
-          else if (line === '---') out.push(`<hr>`);
-          else if (line) out.push(`<p>${line}</p>`);
-        }
+          return hljs.highlightAuto(code).value;
+        },
+        breaks: true,
+      });
+    }
+
+    function formatResponse(text) {
+      if (typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
+        return DOMPurify.sanitize(marked.parse(text));
       }
-      if (inList) out.push(html.includes('1. ') ? '</ol>' : '</ul>');
-      return out.join('');
+      return esc(text).replace(/\n/g, '<br>'); // fallback if CDN fails
     }
 
     /* ── Send ───────────────────────────────────────────────────── */
@@ -1888,14 +2466,25 @@
       userInput.style.height = 'auto';
       appendMessage('user', q);
       isLoading = true;
-      sendBtn.disabled = true;
+      sendBtn.classList.add('loading');
+      $('send-icon').style.display = 'none';
+      $('stop-icon').style.display = 'block';
+      sendBtn.title = "Stop generating";
       showTyping();
+
+      abortController = new AbortController();
 
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: q, chat_uuid: activeChatUUID }),
+          body: JSON.stringify({ 
+            question: q, 
+            chat_uuid: activeChatUUID, 
+            document_name: selectedDocument,
+            is_strict_mode: selectedDocument !== null
+          }),
+          signal: abortController.signal
         });
         const data = await res.json();
         hideTyping();
@@ -1903,15 +2492,35 @@
         if (!res.ok) {
           appendMessage('bot', `⚠ ${data.error || 'An error occurred. Please try again.'}`, [], []);
         } else {
-          appendMessage('bot', data.answer, data.sources || [], data.suggestions || []);
+          if (data.no_context) {
+            // Show more prominent indicator when in strict mode with no context
+            const strictModeWarning = selectedDocument ? `🔒 <strong>STRICT MODE - No matching information:</strong> The selected document does not contain information about your question.` : `🔍 <strong>No relevant information found:</strong>`;
+            appendMessage('bot', `${strictModeWarning}\n\n${data.answer}`, data.sources || [], data.suggestions || []);
+          } else {
+            // Guard against empty answer — the model occasionally produces only
+            // suggestions without actual answer text (common with 0.5B models).
+            const answerText = (data.answer || '').trim();
+            const displayText = answerText
+              ? answerText
+              : '_(The model did not generate a response. Please try rephrasing your question or try again.)_';
+            appendMessage('bot', displayText, data.sources || [], data.suggestions || []);
+          }
           fetchChatHistory();
         }
       } catch (err) {
         hideTyping();
-        appendMessage('bot', `⚠ Network error: ${err.message}`, [], []);
+        if (err.name === 'AbortError') {
+           appendMessage('bot', `⚠ Request cancelled by user.`, [], []);
+        } else {
+          appendMessage('bot', `⚠ Network error: ${err.message}`, [], []);
+        }
       } finally {
         isLoading = false;
-        sendBtn.disabled = false;
+        sendBtn.classList.remove('loading');
+        $('send-icon').style.display = 'block';
+        $('stop-icon').style.display = 'none';
+        sendBtn.title = "Send message";
+        abortController = null;
         userInput.focus();
       }
     }
@@ -1928,8 +2537,13 @@
           if ($('vec-val')) $('vec-val').textContent = n;
           if ($('tb-vectors')) $('tb-vectors').textContent = n;
           const isOllama = data.model_provider === 'ollama';
-          const model = isOllama ? data.ollama_model : (data.chat_model || '—');
+          const modelSection = $('model-section');
+          if (modelSection) modelSection.style.display = isOllama ? 'block' : 'none';
+          
+          const model = isOllama ? data.chat_model : (data.chat_model || '—');
           if ($('model-val')) $('model-val').textContent = model.split('/').pop() + (isOllama ? ' (Local)' : ' (Cloud)');
+          
+          if (isOllama && !activeModelName) fetchModels();
         } else { setOffline(); }
       } catch { setOffline(); }
     }
@@ -2009,34 +2623,60 @@
           fetchDocs();
           fetchStatus();
         } else {
-          toast(data.status_code === 404 ? 'File not found - refreshing...' : (data.detail || 'Delete failed'), 'error');
+          const errMsg = data.error || data.detail || 'Delete failed';
+          toast(res.status === 404 ? 'File not found - refreshing...' : errMsg, 'error');
           fetchDocs();
         }
       } catch (err) { toast('Delete failed: ' + err.message, 'error'); }
     }
 
     /* ── Indexed documents polling ──────────────────────────────── */
+    const PENDING_DOC_STATUSES = new Set(['uploaded', 'queued', 'indexing']);
+    let docsPollTimer = null;
+
+    function scheduleDocsRefresh(delay = 2000) {
+      if (docsPollTimer) clearTimeout(docsPollTimer);
+      docsPollTimer = setTimeout(() => {
+        docsPollTimer = null;
+        fetchDocs();
+      }, delay);
+    }
+
     async function fetchDocs() {
       const dl = $('doc-list');
       if (!dl) return;
       try {
-        const res = await fetch('/api/documents');
+        const res = await fetch('/api/documents', { cache: 'no-store' });
         const data = await res.json();
-        if ($('doc-count-label')) $('doc-count-label').textContent = data.count || 0;
-        if (!data.count) {
+        const documents = Array.isArray(data.documents) ? data.documents : [];
+        const count = data.count || documents.length || 0;
+        if ($('doc-count-label')) $('doc-count-label').textContent = count;
+        if (!documents.length) {
+          if (docsPollTimer) {
+            clearTimeout(docsPollTimer);
+            docsPollTimer = null;
+          }
           dl.innerHTML = '<div class="doc-empty">No documents indexed</div>';
           return;
         }
-        dl.innerHTML = data.documents.map(d => `
+        const hasPending = documents.some(d => PENDING_DOC_STATUSES.has((d.status || '').toLowerCase()));
+        dl.innerHTML = documents.map(d => `
           <div class="doc-item">
             ${getTypeBadge(d.type)}
             <div class="doc-name" title="${esc(d.filename)}">${esc(d.filename)}</div>
             <div style="font-size:10px;color:var(--text-3);flex-shrink:0;margin-right:4px">${formatBytes(d.size_bytes)}</div>
+            ${getStatusBadge(d.status, d.error)}
             <button class="doc-del" onclick="deleteDoc('${esc(d.filename)}')" title="Delete indexed file">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
             </button>
           </div>
         `).join('');
+        if (hasPending) {
+          scheduleDocsRefresh();
+        } else if (docsPollTimer) {
+          clearTimeout(docsPollTimer);
+          docsPollTimer = null;
+        }
       } catch { dl.innerHTML = '<div class="doc-empty" style="color:var(--danger)">Failed to load</div>'; }
     }
 
@@ -2052,15 +2692,17 @@
       uploadHzone.addEventListener('dragleave', e => { e.preventDefault(); uploadHzone.classList.remove('drag-over'); });
       uploadHzone.addEventListener('drop', e => {
         e.preventDefault(); uploadHzone.classList.remove('drag-over');
-        if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+        if (e.dataTransfer.files.length) uploadFiles(Array.from(e.dataTransfer.files));
       });
       fileInput.addEventListener('change', e => {
-        if (e.target.files.length) uploadFile(e.target.files[0]);
+        if (e.target.files.length) uploadFiles(Array.from(e.target.files));
+        e.target.value = '';
       });
 
-      async function uploadFile(file) {
+      async function uploadFiles(files) {
+        if (!files.length) return;
         const fd = new FormData();
-        fd.append('file', file);
+        files.forEach(file => fd.append('files', file));
         progWrap.style.display = 'block';
         progBar.style.width = '30%';
         try {
@@ -2068,11 +2710,15 @@
           progBar.style.width = '100%';
           const data = await res.json();
           if (res.ok) {
-            toast(data.message, 'success');
+            toast(data.message || `Queued ${files.length} file(s) for indexing.`, 'success');
+            (data.rejected_files || []).forEach(item => toast(`${item.filename}: ${item.reason}`, 'error'));
             fetchDocs();
             fetchStatus();
+            scheduleDocsRefresh(800);
           } else {
-            toast(data.detail || 'Upload failed', 'error');
+            const detail = typeof data.detail === 'string' ? data.detail : data.detail?.message;
+            toast(data.error || detail || 'Upload failed', 'error');
+            ((data.rejected_files || data.detail?.rejected_files) || []).forEach(item => toast(`${item.filename}: ${item.reason}`, 'error'));
           }
         } catch (err) {
           toast('Upload error: ' + err.message, 'error');
@@ -2086,11 +2732,103 @@
       }
     }
 
+    /* ── Model Selection (Dynamic) ──────────────────────────── */
+    async function fetchModels() {
+      const dropdown = $('model-dropdown');
+      const activeName = $('model-active-name');
+      const selectorWrap = $('model-selector-wrap');
+      if (!dropdown) return;
+
+      try {
+        const res = await fetch('/api/ollama/models');
+        if (!res.ok) throw new Error('Failed to fetch models');
+        const data = await res.json();
+        const models = data.models || [];
+        const active = (data.active_models && data.active_models.chat_model) || activeModelName || 'unknown';
+
+        // Update current model display
+        activeModelName = active;
+        if (activeName) {
+          activeName.textContent = active.split('/').pop();
+        }
+
+        if (!models.length) {
+          dropdown.innerHTML = '<div class="model-loading-msg">No Ollama models found.<br>Pull a model first.</div>';
+          return;
+        }
+
+        dropdown.innerHTML = models.map(m => {
+          const isActive = m.name === active;
+          return `<div class="model-option${isActive ? ' active-model' : ''}" 
+                    data-model="${esc(m.name)}" 
+                    onclick="selectModel('${esc(m.name)}')"
+                    title="${esc(m.name)}">
+                    ${!isActive ? `<svg width="6" height="6" viewBox="0 0 8 8" style="flex-shrink:0"><circle cx="4" cy="4" r="4" fill="var(--text-3)"/></svg>` : ''}
+                    ${esc(m.name)}
+                  </div>`;
+        }).join('');
+      } catch (e) {
+        if (dropdown) dropdown.innerHTML = '<div class="model-loading-msg" style="color:var(--danger)">Could not load models</div>';
+      }
+    }
+
+    async function selectModel(modelName) {
+      if (modelName === activeModelName) {
+        closeModelDropdown();
+        return;
+      }
+      try {
+        const res = await fetch('/api/settings/ollama?' + new URLSearchParams({ chat_model: modelName }), {
+          method: 'PATCH'
+        });
+        if (!res.ok) throw new Error('Failed to update model');
+        activeModelName = modelName;
+        const activeName = $('model-active-name');
+        if (activeName) activeName.textContent = modelName.split('/').pop();
+        // Refresh dropdown to update active highlight
+        await fetchModels();
+        closeModelDropdown();
+        toast(`Model switched to ${modelName}`, 'success');
+        fetchStatus(); // Refresh status bar
+      } catch (e) {
+        toast('Failed to switch model: ' + e.message, 'error');
+      }
+    }
+
+    function toggleModelDropdown() {
+      const wrap = $('model-selector-wrap');
+      if (!wrap) return;
+      const isOpen = wrap.classList.contains('open');
+      if (isOpen) {
+        wrap.classList.remove('open');
+      } else {
+        wrap.classList.add('open');
+        fetchModels(); // Refresh model list each time dropdown opens
+      }
+    }
+
+    function closeModelDropdown() {
+      const wrap = $('model-selector-wrap');
+      if (wrap) wrap.classList.remove('open');
+    }
+
+    // Toggle dropdown on header click
+    document.addEventListener('DOMContentLoaded', () => {
+      const trigger = $('model-selector-trigger');
+      if (trigger) trigger.addEventListener('click', toggleModelDropdown);
+      // Close when clicking outside
+      document.addEventListener('click', (e) => {
+        const wrap = $('model-selector-wrap');
+        if (wrap && !wrap.contains(e.target)) closeModelDropdown();
+      });
+    });
+
     /* ── Init ───────────────────────────────────────────────────── */
     setInterval(fetchStatus, 3000);
     fetchStatus();
     fetchDocs();
     fetchChatHistory();
+    fetchModels(); // Load model list on startup
 
   </script>
 </body>

@@ -15,3 +15,5 @@ psycopg2-binary
 sqlalchemy
 requests
 openai
+openpyxl
+xlrd

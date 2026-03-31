@@ -14,7 +14,7 @@ from flask import Flask, render_template, request, jsonify
 
 app = Flask(__name__)
 
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
 
 
 # ── Pages ──────────────────────────────────────────────────────────────────
@@ -67,22 +67,44 @@ def status():
         resp.raise_for_status()
         return jsonify(resp.json())
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 503
+        return jsonify({
+            "model_provider": "ollama",
+            "chat_model": "—",
+            "ollama_model": "—",
+            "total_vectors": 0,
+            "error": "Backend unreachable"
+        }), 200
 
 
 @app.route("/api/upload", methods=["POST"])
 def upload():
-    if "file" not in request.files:
+    uploads = [f for f in request.files.getlist("files") if f and f.filename]
+    if not uploads and "file" in request.files:
+        legacy_file = request.files["file"]
+        if legacy_file and legacy_file.filename:
+            uploads.append(legacy_file)
+
+    if not uploads:
         return jsonify({"error": "No file provided."}), 400
-    f = request.files["file"]
+
+    request_files = [
+        ("files", (uploaded.filename, uploaded.stream, uploaded.mimetype or "application/octet-stream"))
+        for uploaded in uploads
+    ]
+
     try:
         resp = requests.post(
             f"{BACKEND_URL}/upload",
-            files={"file": (f.filename, f.stream, f.mimetype)},
-            timeout=120,
+            files=request_files,
+            timeout=600,
         )
-        resp.raise_for_status()
-        return jsonify(resp.json())
+        try:
+            payload = resp.json()
+        except Exception:
+            payload = {"error": resp.text}
+        if not resp.ok:
+            return jsonify(payload), resp.status_code
+        return jsonify(payload)
     except requests.exceptions.ConnectionError:
         return jsonify({"error": "Cannot reach the RAG backend."}), 503
     except Exception as exc:
@@ -94,15 +116,20 @@ def documents():
     try:
         resp = requests.get(f"{BACKEND_URL}/documents", timeout=5)
         resp.raise_for_status()
-        return jsonify(resp.json())
+        response = jsonify(resp.json())
+        response.headers["Cache-Control"] = "no-store"
+        return response
     except Exception as exc:
         return jsonify({"error": str(exc)}), 503
 
 
-@app.route("/api/documents/<filename>", methods=["DELETE"])
+import urllib.parse
+
+@app.route("/api/documents/<path:filename>", methods=["DELETE"])
 def delete_document(filename):
     try:
-        resp = requests.delete(f"{BACKEND_URL}/documents/{filename}", timeout=10)
+        safe_filename = urllib.parse.quote(filename)
+        resp = requests.delete(f"{BACKEND_URL}/documents/{safe_filename}", timeout=10)
         if not resp.ok:
             try:
                 err = resp.json().get("detail", resp.text)
@@ -197,7 +224,7 @@ def list_ollama_models():
         resp = requests.get(f"{BACKEND_URL}/ollama/models", timeout=10)
         return jsonify(resp.json()), resp.status_code
     except Exception as exc:
-        return jsonify({"error": str(exc)}), 500
+        return jsonify({"models": [], "error": str(exc)}), 200
 
 
 @app.route("/api/settings/ollama", methods=["PATCH"])

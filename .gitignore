@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+ENV/
+env/
+.venv/
+
+# Logs
+*.log
+backend/backend_out.txt
+backend_raw.log
+error.log
+
+# Local debug scripts
+backend/test_ollama_direct.py
+test_proxy.py
+
+# Local data
+chroma_db/
+documents/
+backend/documents/
+backend/chroma_db/
+
+# Local env files
+backend/.env
+
+# Packaging outputs
+packaging/dist/
+packaging/build_temp/
+packaging/build/
+packaging/Output/
+packaging/installer_output/
+packaging/*.zip
+packaging/*.exe
+
+# OS files
+Thumbs.db
+Desktop.ini

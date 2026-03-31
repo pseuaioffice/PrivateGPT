@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PrivateGPT — Enterprise Document Intelligence</title>
+  <title>MyAIAssistant — Enterprise Document Intelligence</title>
   <meta name="description" content="Enterprise-grade AI document intelligence powered by GPT-4o and RAG technology." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -41,14 +41,14 @@
       --neutral-900: #0f1320;
 
       /* Brand */
-      --brand-50: #eef1ff;
-      --brand-100: #dce2ff;
-      --brand-200: #bbc9ff;
-      --brand-400: #7b93f5;
-      --brand-500: #4f6ef2;
-      --brand-600: #3553e8;
-      --brand-700: #2a43d4;
-      --brand-800: #2036b0;
+      --brand-50: #ecfeff;
+      --brand-100: #cffafe;
+      --brand-200: #a5f3fc;
+      --brand-400: #22d3ee;
+      --brand-500: #06b6d4;
+      --brand-600: #0891b2;
+      --brand-700: #0e7490;
+      --brand-800: #155e75;
 
       /* Semantic */
       --success: #10b981;
@@ -602,6 +602,116 @@
       transition: width .4s ease;
     }
 
+    /* ── Model Selector (Custom Dropdown) ───────────────────────── */
+    .model-selector-wrap {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .model-selector-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: background .15s;
+      user-select: none;
+      gap: 8px;
+    }
+
+    .model-selector-header:hover {
+      background: var(--surface);
+    }
+
+    .model-selector-active {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .model-active-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      flex-shrink: 0;
+      box-shadow: 0 0 0 2px #10b98130;
+    }
+
+    .model-active-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .model-caret {
+      flex-shrink: 0;
+      color: var(--text-3);
+      transition: transform .2s;
+    }
+
+    .model-selector-wrap.open .model-caret {
+      transform: rotate(180deg);
+    }
+
+    .model-dropdown {
+      display: none;
+      border-top: 1px solid var(--border);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .model-selector-wrap.open .model-dropdown {
+      display: block;
+    }
+
+    .model-option-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text-2);
+      transition: background .1s;
+    }
+
+    .model-option-item:hover {
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .model-option-item.active-model {
+      color: var(--brand-600);
+      font-weight: 600;
+      background: var(--brand-50);
+    }
+
+    .model-option-item.active-model::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      flex-shrink: 0;
+    }
+
+    .model-loading-msg {
+      font-size: 11px;
+      color: var(--text-3);
+      padding: 8px 12px;
+      font-style: italic;
+    }
+
     /* Document list */
     .doc-list {
       display: flex;
@@ -668,9 +778,52 @@
       color: #065f46;
     }
 
+    .doc-type-badge.xls,
+    .doc-type-badge.xlsx {
+      background: #dcfce7;
+      color: #166534;
+    }
+
     .doc-type-badge.other {
       background: #f3f4f6;
       color: #6b7280;
+    }
+
+    .doc-status-badge {
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .doc-status-badge.uploaded,
+    .doc-status-badge.queued {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .doc-status-badge.indexing {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .doc-status-badge.indexed,
+    .doc-status-badge.available {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .doc-status-badge.indexed_only {
+      background: #e5e7eb;
+      color: #4b5563;
+    }
+
+    .doc-status-badge.error {
+      background: #fee2e2;
+      color: #b91c1c;
     }
 
     .doc-name {
@@ -1434,8 +1587,8 @@
     }
 
     #send-btn {
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
       border-radius: var(--radius-sm);
       border: none;
       background: var(--brand-500);
@@ -1445,25 +1598,45 @@
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      transition: background .15s, transform .1s, opacity .2s;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: var(--shadow-sm);
     }
 
     #send-btn svg {
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
     }
 
-    #send-btn:hover:not(:disabled) {
+    #send-btn:hover {
       background: var(--brand-600);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow);
     }
 
-    #send-btn:active:not(:disabled) {
-      transform: scale(.93);
+    #send-btn:active {
+      transform: translateY(0) scale(.95);
     }
 
-    #send-btn:disabled {
+    #send-btn.loading {
+      background: var(--danger);
+      animation: stopPulse 2s infinite;
+    }
+
+    #send-btn.loading:hover {
+      background: #dc2626;
+    }
+
+    @keyframes stopPulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    #send-btn:disabled:not(.loading) {
       opacity: .4;
       cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
     }
 
     .input-bottom {
@@ -1612,17 +1785,21 @@
 
     <div class="sidebar-brand">
       <div class="brand-logo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"
-          stroke-linejoin="round">
-          <circle cx="12" cy="4" r="2" />
-          <circle cx="4" cy="20" r="2" />
-          <circle cx="20" cy="20" r="2" />
-          <line x1="12" y1="6" x2="4" y2="18" />
-          <line x1="12" y1="6" x2="20" y2="18" />
-          <line x1="4" y1="18" x2="20" y2="18" />
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="myai-grad-admin" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#0f172a" />
+              <stop offset="100%" stop-color="#06b6d4" />
+            </linearGradient>
+          </defs>
+          <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#myai-grad-admin)" />
+          <path d="M7.5 17L12 7l4.5 10" stroke="#ffffff" stroke-width="1.7" stroke-linecap="round"
+            stroke-linejoin="round" />
+          <path d="M9.5 12.5h5" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" />
+          <circle cx="17.3" cy="7.2" r="1.4" fill="#7dd3fc" />
         </svg>
       </div>
-      <span class="brand-name">PrivateGPT</span>
+      <span class="brand-name">MyAIAssistant</span>
       <span class="brand-badge admin">Administrator</span>
     </div>
 
@@ -1706,6 +1883,25 @@
         </div>
       </div>
 
+      <!-- Model Selection (Ollama) - Always Visible when Ollama is provider -->
+      <div class="sidebar-section" id="model-section" style="margin-top: 8px;">
+        <div class="sidebar-section-label">Ollama Model Selection</div>
+        <div class="model-selector-wrap" id="model-selector-wrap">
+          <div class="model-selector-header" id="model-selector-trigger">
+            <div class="model-selector-active">
+              <div class="model-active-dot" id="model-active-dot"></div>
+              <span class="model-active-name" id="model-active-name">Loading…</span>
+            </div>
+            <svg class="model-caret" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
+          <div class="model-dropdown" id="model-dropdown">
+            <div class="model-loading-msg">Loading models…</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Retrieval Settings (Only in Chat mode) -->
       <div id="sidebar-retrieval-settings" style="display:none">
         <div class="sidebar-section">
@@ -1752,7 +1948,7 @@
     <!-- Topbar -->
     <div class="topbar">
       <div class="topbar-breadcrumb">
-        <span class="bc-item">PrivateGPT</span>
+        <span class="bc-item">MyAIAssistant</span>
         <span class="bc-sep">/</span>
         <span class="bc-item active" id="breadcrumb-view">Admin Dashboard</span>
       </div>
@@ -1831,12 +2027,19 @@
           <div class="input-top">
             <textarea id="user-input" placeholder="Type a message or drop files..." rows="1"
               onkeydown="handleKey(event)"></textarea>
-            <button id="send-btn" onclick="sendMessage()" title="Send message">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-                stroke-linejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13" />
-                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
+            <button id="send-btn" onclick="handleSendClick()" title="Send message">
+              <span id="send-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                  stroke-linejoin="round">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              </span>
+              <span id="stop-icon" style="display:none">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="6" y="6" width="12" height="12" rx="2" />
+                </svg>
+              </span>
             </button>
           </div>
           <div class="input-bottom">
@@ -1894,7 +2097,10 @@
               </svg>
             </div>
           </div>
-          <div class="stat-card-value" style="font-size: 16px; margin-top: 8px;" id="dash-model">—</div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top: 8px;">
+            <div class="stat-card-value" style="font-size: 16px;" id="dash-model">—</div>
+            <div style="font-size:10px; color:var(--brand-500); font-weight:700; cursor:pointer; padding-bottom:4px;" onclick="const el = document.getElementById('local-model-setting'); if(el){el.scrollIntoView({behavior:'smooth'}); el.style.boxShadow='0 0 0 2px var(--brand-500)'; setTimeout(()=>el.style.boxShadow='', 2000);}">CHANGE →</div>
+          </div>
           <div class="stat-card-desc">Active LLM Instance</div>
         </div>
       </div>
@@ -1916,8 +2122,8 @@
                   <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" />
                 </svg></div>
               <div class="upload-title" style="font-size:13px">Click to upload new knowledge</div>
-              <div class="upload-sub" style="font-size:10px">PDF, DOCX, TXT supported</div>
-              <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md,.csv" />
+              <div class="upload-sub" style="font-size:10px">Multiple PDF, DOCX, TXT, CSV, XLS, XLSX files supported</div>
+              <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md,.csv,.xls,.xlsx" multiple />
               <div class="progress-bar-wrap" id="prog-wrap">
                 <div class="progress-bar-fill" id="prog-bar"></div>
               </div>
@@ -1930,18 +2136,25 @@
           </div>
         </div>
 
+
         <div class="panel">
           <div class="panel-header">
             <div class="panel-title">Governance & Actions</div>
           </div>
           <div class="panel-body" style="display:flex; flex-direction:column; gap:16px;">
             <div class="status-widget">
-              <div class="status-row"><span class="status-key">API Engine</span><span
-                  class="status-val online">Online</span></div>
-              <div class="status-row"><span class="status-key">Chat DB</span><span class="status-val"
-                  id="dash-db-val">—</span></div>
-              <div class="status-row"><span class="status-key">Security</span><span class="status-val"
-                  style="color:var(--success)">Enterprise</span></div>
+              <div class="status-row">
+                <span class="status-key">API Engine</span>
+                <span class="status-val online">Online</span>
+              </div>
+              <div class="status-row">
+                <span class="status-key">Chat DB</span>
+                <span class="status-val" id="dash-db-val">—</span>
+              </div>
+              <div class="status-row">
+                <span class="status-key">Security</span>
+                <span class="status-val" style="color:var(--success)">Enterprise</span>
+              </div>
             </div>
             <div style="display:flex; gap:8px;">
               <button class="new-chat-btn"
@@ -2159,6 +2372,23 @@
     const sendBtn = $('send-btn');
 
     let isLoading = false;
+    let chatAbortController = null;
+
+    function handleSendClick() {
+      if (isLoading) {
+        stopMessage();
+      } else {
+        sendMessage();
+      }
+    }
+
+    function stopMessage() {
+      if (chatAbortController) {
+        chatAbortController.abort();
+        chatAbortController = null;
+        toast('Response cancelled', 'info');
+      }
+    }
 
     /* ── Theme ──────────────────────────────────────────────────── */
     (function () {
@@ -2199,10 +2429,24 @@
     }
 
     function getTypeBadge(ext) {
-      const valid = ['pdf', 'docx', 'txt', 'md', 'csv'];
+      const valid = ['pdf', 'docx', 'txt', 'md', 'csv', 'xls', 'xlsx'];
       const clean = ext.toLowerCase().replace('.', '');
       const clss = valid.includes(clean) ? clean : 'other';
       return `<span class="doc-type-badge ${clss}">${clean.toUpperCase() || 'FILE'}</span>`;
+    }
+
+    function getStatusBadge(status, error = '') {
+      const clean = (status || 'uploaded').toLowerCase();
+      const labels = {
+        uploaded: 'Uploaded',
+        queued: 'Queued',
+        indexing: 'Indexing',
+        indexed: 'Indexed',
+        indexed_only: 'Indexed only',
+        available: 'Indexed',
+        error: 'Error',
+      };
+      return `<span class="doc-status-badge ${clean}" title="${esc(error || labels[clean] || clean)}">${labels[clean] || clean}</span>`;
     }
 
     async function clearCollection() {
@@ -2237,11 +2481,11 @@
     userInput.addEventListener('keydown', e => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        sendMessage();
+        handleSendClick();
       }
     });
 
-    sendBtn.addEventListener('click', sendMessage);
+    sendBtn.addEventListener('click', handleSendClick);
 
     /* ── UUID helpers ───────────────────────────────────────────── */
     function genUUID() {
@@ -2298,7 +2542,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
           </div>`;
 
-      const senderName = role === 'user' ? 'You' : 'PrivateGPT';
+      const senderName = role === 'user' ? 'You' : 'MyAIAssistant';
 
       let sourcesHTML = '';
       if (sources && sources.length) {
@@ -2360,7 +2604,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand-500)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg>
       </div>
       <div style="display:flex;flex-direction:column;gap:6px">
-        <div style="font-size:12.5px;font-weight:600;color:var(--text)">PrivateGPT</div>
+        <div style="font-size:12.5px;font-weight:600;color:var(--text)">MyAIAssistant</div>
         <div class="typing-dots"><span></span><span></span><span></span></div>
       </div>`;
       messages.appendChild(typingRow);
@@ -2412,11 +2656,16 @@
       userInput.value = '';
       userInput.style.height = 'auto';
       appendMessage('user', q);
-      isLoading = true;
-      sendBtn.disabled = true;
+    isLoading = true;
+      sendBtn.classList.add('loading');
+      $('send-icon').style.display = 'none';
+      $('stop-icon').style.display = 'block';
+      sendBtn.title = "Stop generating";
+      
       showTyping();
 
       const kVal = $('k-slider') ? parseInt($('k-slider').value) : 15;
+      chatAbortController = new AbortController();
 
       try {
         const res = await fetch('/api/chat', {
@@ -2427,6 +2676,7 @@
             chat_uuid: activeChatUUID,
             k: kVal
           }),
+          signal: chatAbortController.signal
         });
         const data = await res.json();
         hideTyping();
@@ -2439,10 +2689,18 @@
         }
       } catch (err) {
         hideTyping();
-        appendMessage('bot', `⚠ Network error: ${err.message}`, [], []);
+        if (err.name === 'AbortError') {
+          appendMessage('bot', `⚠ Request cancelled by user.`, [], []);
+        } else {
+          appendMessage('bot', `⚠ Network error: ${err.message}`, [], []);
+        }
       } finally {
         isLoading = false;
-        sendBtn.disabled = false;
+        sendBtn.classList.remove('loading');
+        $('send-icon').style.display = 'block';
+        $('stop-icon').style.display = 'none';
+        sendBtn.title = "Send message";
+        chatAbortController = null;
         userInput.focus();
       }
     }
@@ -2512,8 +2770,6 @@
       const wrap = $(`${type}-pull-progress-wrap`);
       const bar = $(`${type}-pull-progress-bar`);
       const statusLabel = $(`${type}-model-status`);
-      const pullBtn = $(`btn-pull-${type}`);
-      const applyBtn = $(`btn-apply-${type}`);
 
       if (!statusLabel) return;
 
@@ -2532,8 +2788,6 @@
         statusLabel.style.background = 'var(--success-bg)';
         statusLabel.style.color = 'var(--success)';
         if (wrap) wrap.style.display = 'none';
-        if (pullBtn) pullBtn.style.display = 'none';
-        if (applyBtn) applyBtn.style.display = 'block';
         return;
       }
 
@@ -2602,11 +2856,66 @@
                 updateModelStatus(type, backendModel);
               }
             });
+
+            // Update sidebar display
+            const activeChat = data.active_models.chat_model;
+            if (activeChat) {
+              const activeNameEl = $('model-active-name');
+              if (activeNameEl) activeNameEl.textContent = activeChat.split('/').pop();
+            }
+            
+            // Populate sidebar dropdown
+            const dropdown = $('model-dropdown');
+            if (dropdown) {
+              if (!installedModels.length) {
+                dropdown.innerHTML = '<div class="model-loading-msg">No models found.<br>Pull one in Dashboard.</div>';
+              } else {
+                dropdown.innerHTML = installedModels.map(name => {
+                  const isActive = name === activeChat;
+                  return `<div class="model-option-item${isActive ? ' active-model' : ''}" 
+                            onclick="selectSidebarModel('${name}')">
+                            ${name}
+                          </div>`;
+                }).join('');
+              }
+            }
           }
         }
       } catch (err) { 
         console.error('Failed to fetch Ollama models', err); 
       }
+    }
+
+    async function selectSidebarModel(modelName) {
+      const chatInput = $('local-chat-model-input');
+      const embedInput = $('local-embed-model-input');
+      if (chatInput) chatInput.value = modelName;
+      
+      // Update the model using existing logic
+      await updateOllamaModels();
+      closeSidebarModelDropdown();
+    }
+
+    function toggleSidebarModelDropdown() {
+      const wrap = $('model-selector-wrap');
+      console.log('Toggle dropdown called, wrap:', wrap);
+      if (wrap) {
+        if (wrap.classList.contains('open')) {
+          wrap.classList.remove('open');
+          console.log('Closing dropdown');
+        } else {
+          wrap.classList.add('open');
+          console.log('Opening dropdown');
+          fetchOllamaModels();
+        }
+      } else {
+        console.log('Model selector wrap not found');
+      }
+    }
+
+    function closeSidebarModelDropdown() {
+      const wrap = $('model-selector-wrap');
+      if (wrap) wrap.classList.remove('open');
     }
 
     function updateModelDropdowns() {
@@ -2880,6 +3189,7 @@
       }
     }
 
+
     async function fetchStatus() {
       try {
         const res = await fetch('/api/status');
@@ -2894,8 +3204,10 @@
           if ($('dash-vec-total')) $('dash-vec-total').textContent = n;
 
           // Model Provider UI Sync
-          const provider = data.model_provider || 'huggingface';
+          const provider = 'ollama'; // Force provider to be Ollama
           const isOllama = provider === 'ollama';
+          
+          console.log('Provider:', provider, 'isOllama:', isOllama);
 
           if ($('opt-hf')) $('opt-hf').classList.toggle('active', !isOllama);
           if ($('opt-ollama')) $('opt-ollama').classList.toggle('active', isOllama);
@@ -2905,8 +3217,13 @@
             $('provider-badge').style.color = isOllama ? 'var(--text-2)' : 'var(--brand-500)';
           }
           if ($('local-model-setting')) {
-            $('local-model-setting').style.display = isOllama ? 'block' : 'none';
+            $('local-model-setting').style.display = 'block'; // Always show for debugging
+            console.log('Model section visibility: block, isOllama:', isOllama);
             if (isOllama) initOllamaWS();
+          }
+          if ($('model-section')) {
+            $('model-section').style.display = 'block'; // Always show for debugging
+            console.log('Model section visibility: block, isOllama:', isOllama);
           }
           if ($('cloud-model-setting')) $('cloud-model-setting').style.display = isOllama ? 'none' : 'block';
 
@@ -3082,30 +3399,54 @@
     }
 
     /* ── Indexed documents polling ──────────────────────────────── */
+    const PENDING_DOC_STATUSES = new Set(['uploaded', 'queued', 'indexing']);
+    let docsPollTimer = null;
+
+    function scheduleDocsRefresh(delay = 2000) {
+      if (docsPollTimer) clearTimeout(docsPollTimer);
+      docsPollTimer = setTimeout(() => {
+        docsPollTimer = null;
+        fetchDocs();
+      }, delay);
+    }
+
     async function fetchDocs() {
       const dl = $('doc-list');
       if (!dl) return;
       try {
-        const res = await fetch('/api/documents');
+        const res = await fetch('/api/documents', { cache: 'no-store' });
         const data = await res.json();
-        const count = data.count || 0;
+        const documents = Array.isArray(data.documents) ? data.documents : [];
+        const count = data.count || documents.length || 0;
         if ($('doc-count-label')) $('doc-count-label').textContent = count;
         if ($('dash-doc-total')) $('dash-doc-total').textContent = count;
 
-        if (!data.count) {
+        if (!documents.length) {
+          if (docsPollTimer) {
+            clearTimeout(docsPollTimer);
+            docsPollTimer = null;
+          }
           dl.innerHTML = '<div class="doc-empty">No documents indexed</div>';
           return;
         }
-        dl.innerHTML = data.documents.map(d => `
+        const hasPending = documents.some(d => PENDING_DOC_STATUSES.has((d.status || '').toLowerCase()));
+        dl.innerHTML = documents.map(d => `
           <div class="doc-item">
             ${getTypeBadge(d.type)}
             <div class="doc-name" title="${esc(d.filename)}">${esc(d.filename)}</div>
             <div style="font-size:10px;color:var(--text-3);flex-shrink:0">${formatBytes(d.size_bytes)}</div>
+            ${getStatusBadge(d.status, d.error)}
             <button class="doc-del" onclick="deleteDoc('${esc(d.filename)}')" title="Delete indexed file">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
             </button>
           </div>
         `).join('');
+        if (hasPending) {
+          scheduleDocsRefresh();
+        } else if (docsPollTimer) {
+          clearTimeout(docsPollTimer);
+          docsPollTimer = null;
+        }
       } catch { dl.innerHTML = '<div class="doc-empty" style="color:var(--danger)">Failed to load</div>'; }
     }
 
@@ -3119,7 +3460,7 @@
           fetchDocs();
           fetchStatus();
         } else {
-          toast(data.error || 'Delete failed', 'error');
+          toast(data.detail || data.error || 'Delete failed', 'error');
         }
       } catch (err) { toast('Delete failed: ' + err.message, 'error'); }
     }
@@ -3136,15 +3477,17 @@
       uploadHzone.addEventListener('dragleave', e => { e.preventDefault(); uploadHzone.classList.remove('drag-over'); });
       uploadHzone.addEventListener('drop', e => {
         e.preventDefault(); uploadHzone.classList.remove('drag-over');
-        if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+        if (e.dataTransfer.files.length) uploadFiles(Array.from(e.dataTransfer.files));
       });
       fileInput.addEventListener('change', e => {
-        if (e.target.files.length) uploadFile(e.target.files[0]);
+        if (e.target.files.length) uploadFiles(Array.from(e.target.files));
+        e.target.value = '';
       });
 
-      async function uploadFile(file) {
+      async function uploadFiles(files) {
+        if (!files.length) return;
         const fd = new FormData();
-        fd.append('file', file);
+        files.forEach(file => fd.append('files', file));
         progWrap.style.display = 'block';
         progBar.style.width = '30%';
         try {
@@ -3152,11 +3495,15 @@
           progBar.style.width = '100%';
           const data = await res.json();
           if (res.ok) {
-            toast(data.message, 'success');
+            toast(data.message || `Queued ${files.length} file(s) for indexing.`, 'success');
+            (data.rejected_files || []).forEach(item => toast(`${item.filename}: ${item.reason}`, 'error'));
             fetchDocs();
             fetchStatus();
+            scheduleDocsRefresh(800);
           } else {
-            toast(data.detail || 'Upload failed', 'error');
+            const detail = typeof data.detail === 'string' ? data.detail : data.detail?.message;
+            toast(data.error || detail || 'Upload failed', 'error');
+            ((data.rejected_files || data.detail?.rejected_files) || []).forEach(item => toast(`${item.filename}: ${item.reason}`, 'error'));
           }
         } catch (err) {
           toast('Upload error: ' + err.message, 'error');
@@ -3176,6 +3523,16 @@
     fetchDocs();
     fetchChatHistory();
     initModelInputListeners();
+
+    // Sidebar Model Selector Listeners
+    document.addEventListener('DOMContentLoaded', () => {
+      const trigger = $('model-selector-trigger');
+      if (trigger) trigger.addEventListener('click', toggleSidebarModelDropdown);
+      document.addEventListener('click', (e) => {
+        const wrap = $('model-selector-wrap');
+        if (wrap && !wrap.contains(e.target)) closeSidebarModelDropdown();
+      });
+    });
 
   </script>
 </body>

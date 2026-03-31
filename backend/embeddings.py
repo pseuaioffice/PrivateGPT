@@ -48,44 +48,54 @@ class UniversalEmbeddings(Embeddings):
 
     def _embed_ollama(self, texts: List[str], model: str) -> List[List[float]]:
         """
-        Generate embeddings using local Ollama instance.
-        Tries new /api/embed first, falls back to /api/embeddings for older versions.
+        Generate embeddings using local Ollama instance in batches.
         """
-        # Try new endpoint first (Ollama 0.1.24+)
-        try:
-            url = f"{settings.OLLAMA_BASE_URL}/api/embed"
-            res = requests.post(
-                url,
-                json={"model": model, "input": texts},
-                timeout=30,  # Add timeout for embeddings
-            )
-            if res.status_code == 200:
-                return res.json()["embeddings"]
-        except requests.exceptions.Timeout:
-            logger.error("Ollama embedding request timed out after 30 seconds")
-            raise RuntimeError("Embedding generation timed out. Please try again.")
-        except Exception:
-            pass
+        all_embeddings: List[List[float]] = []
+        batch_size = 16
         
-        # Fall back to legacy endpoint (older Ollama versions)
-        try:
-            url = f"{settings.OLLAMA_BASE_URL}/api/embeddings"
-            all_embeddings = []
-            for text in texts:
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i : i + batch_size]
+            
+            # Try new endpoint first (Ollama 0.1.24+)
+            try:
+                url = f"{settings.OLLAMA_BASE_URL}/api/embed"
                 res = requests.post(
                     url,
-                    json={"model": model, "prompt": text},
-                    timeout=30,  # Add timeout for embeddings
+                    json={
+                        "model": model, 
+                        "input": batch,
+                        "keep_alive": "10m"
+                    },
+                    timeout=120,
                 )
-                res.raise_for_status()
-                all_embeddings.append(res.json()["embedding"])
-            return all_embeddings
-        except requests.exceptions.Timeout:
-            logger.error("Ollama embedding request timed out after 30 seconds")
-            raise RuntimeError("Embedding generation timed out. Please try again.")
-        except Exception as e:
-            logger.error("Ollama embedding failed for model '%s': %s", model, e)
-            raise RuntimeError(f"Ollama embedding failed: {e}")
+                if res.status_code == 200:
+                    all_embeddings.extend(res.json()["embeddings"])
+                    continue
+            except requests.exceptions.Timeout:
+                logger.error("Ollama embedding request timed out")
+                raise RuntimeError("Embedding generation timed out. Please try again.")
+            except Exception:
+                pass
+            
+            # Fall back to legacy endpoint
+            try:
+                url = f"{settings.OLLAMA_BASE_URL}/api/embeddings"
+                for text in batch:
+                    res = requests.post(
+                        url,
+                        json={"model": model, "prompt": text},
+                        timeout=120,
+                    )
+                    res.raise_for_status()
+                    all_embeddings.append(res.json()["embedding"])
+            except requests.exceptions.Timeout:
+                logger.error("Ollama embedding request timed out")
+                raise RuntimeError("Embedding generation timed out. Please try again.")
+            except Exception as e:
+                logger.error("Ollama embedding failed for model '%s': %s", model, e)
+                raise RuntimeError(f"Ollama embedding failed: {e}")
+                
+        return all_embeddings
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         return self._embed(texts)

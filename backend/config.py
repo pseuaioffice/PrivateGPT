@@ -37,16 +37,23 @@ class Settings:
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
 
     # Local Ollama
-    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    MODEL_PROVIDER: str = os.getenv("MODEL_PROVIDER", "huggingface")
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+    MODEL_PROVIDER: str = os.getenv("MODEL_PROVIDER", "ollama")
     CHAT_MODEL_LOCAL: str = os.getenv("CHAT_MODEL_LOCAL", "qwen")
     EMBEDDING_MODEL_LOCAL: str = os.getenv("EMBEDDING_MODEL_LOCAL", "nomic-embed-text")
 
     def validate(self) -> None:
-        if not self.HUGGINGFACE_TOKEN:
+        if self.MODEL_PROVIDER != "ollama" and not self.HUGGINGFACE_TOKEN:
             raise EnvironmentError(
                 "HUGGINGFACE_TOKEN is not set. "
-                "Add it to backend/.env before starting the server."
+                "Add it to backend/.env before starting the server, "
+                "or set MODEL_PROVIDER=ollama to use local models instead."
+            )
+        if not self.HUGGINGFACE_TOKEN:
+            import logging
+            logging.getLogger(__name__).warning(
+                "HUGGINGFACE_TOKEN is not set — cloud models will be unavailable. "
+                "Using Ollama local models."
             )
 
 

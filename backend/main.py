@@ -40,17 +40,27 @@ import os
 import shutil
 import json
 import requests
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, UploadFile, File, BackgroundTasks, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from config import settings
-from indexer import index_all_documents, start_file_watcher, stop_file_watcher
+from document_loader import SUPPORTED_EXTENSIONS
+from indexer import (
+    clear_file_status,
+    get_file_statuses,
+    index_all_documents,
+    register_uploaded_file,
+    schedule_index_file,
+    start_file_watcher,
+    stop_file_watcher,
+)
 from rag_chain import ask
 from vector_store import collection_count, get_vector_store, clear_collection, delete_by_filename
 from model_manager import model_manager, ModelStatus
@@ -102,10 +112,7 @@ def _index_new_files_on_startup() -> None:
     from pathlib import Path
     import json
     from vector_store import _get_conn, collection_count
-    from document_loader import load_documents_from_folder, split_documents
-    from vector_store import add_documents
-
-    supported = {".pdf", ".docx", ".txt", ".md", ".csv"}
+    supported = set(SUPPORTED_EXTENSIONS)
     docs_dir = Path(settings.DOCUMENTS_DIR)
 
     # Gather files on disk
@@ -171,21 +178,33 @@ def _index_new_files_on_startup() -> None:
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import traceback as _tb
     logger.info("=== RAG backend starting up ===")
-    settings.validate()
 
-    # Ensure the documents folder exists
-    os.makedirs(settings.DOCUMENTS_DIR, exist_ok=True)
+    # Step 1: Validate settings
+    try:
+        settings.validate()
+    except Exception as e:
+        logger.warning("Settings validation warning: %s", e)
 
-    # Initialise PostgreSQL (optional — graceful no-op if not configured)
-    db.init_db()
+    # Step 2: Ensure the documents folder exists
+    try:
+        os.makedirs(settings.DOCUMENTS_DIR, exist_ok=True)
+    except Exception as e:
+        logger.error("Could not create documents dir: %s\n%s", e, _tb.format_exc())
 
-    # Load persistent model configuration
+    # Step 3: Initialise PostgreSQL (optional — graceful no-op if not configured)
+    try:
+        db.init_db()
+    except Exception as e:
+        logger.warning("DB init failed (continuing without chat history): %s", e)
+
+    # Step 4: Load persistent model configuration
     try:
         active_models = model_manager.get_active_models()
-        settings.MODEL_PROVIDER = active_models["provider"]
-        settings.CHAT_MODEL_LOCAL = active_models["chat_model"]
-        settings.EMBEDDING_MODEL_LOCAL = active_models["embedding_model"]
+        settings.MODEL_PROVIDER = active_models.get("provider", "ollama")
+        settings.CHAT_MODEL_LOCAL = active_models.get("chat_model", settings.CHAT_MODEL_LOCAL)
+        settings.EMBEDDING_MODEL_LOCAL = active_models.get("embedding_model", settings.EMBEDDING_MODEL_LOCAL)
         logger.info(
             "Loaded model config: provider=%s, chat=%s, embedding=%s",
             settings.MODEL_PROVIDER,
@@ -193,28 +212,44 @@ async def lifespan(app: FastAPI):
             settings.EMBEDDING_MODEL_LOCAL
         )
     except Exception as e:
-        logger.warning("Could not load persistent model config: %s", e)
+        logger.warning("Could not load persistent model config (using defaults): %s\n%s", e, _tb.format_exc())
 
-    # Smart startup indexing: find which files are NOT yet indexed and index them.
-    # Wrapped in try/except — if the embedding API is rate-limited or unavailable
-    # the server still starts and already-indexed documents remain accessible.
+
+    # Step 5: Smart startup indexing — runs in background so server is immediately ready
+    def _background_startup_index():
+        try:
+            _index_new_files_on_startup()
+        except Exception as exc:
+            logger.warning(
+                "Background startup indexing failed — %s. "
+                "Existing documents remain accessible.",
+                exc,
+            )
+
+    t = threading.Thread(target=_background_startup_index, daemon=True,
+                         name="startup-indexer")
+    t.start()
+
+    # Step 6: Start hot-reload watcher (handles files added while server is running)
     try:
-        _index_new_files_on_startup()
-    except Exception as exc:
-        logger.warning(
-            "Startup indexing skipped or partially failed — %s. "
-            "Existing documents remain accessible.",
-            exc,
-        )
+        start_file_watcher()
+    except Exception as e:
+        logger.warning("File watcher could not start (continuing without auto-reload): %s", e)
 
-    # Start hot-reload watcher (handles files added while server is running)
-    start_file_watcher()
-
+    logger.info("=== RAG backend ready — listening for requests ===")
     yield  # app runs here
 
-    stop_file_watcher()
-    db.close_pool()
+    # Shutdown
+    try:
+        stop_file_watcher()
+    except Exception:
+        pass
+    try:
+        db.close_pool()
+    except Exception:
+        pass
     logger.info("=== RAG backend shut down ===")
+
 
 
 # ---------------------------------------------------------------------------
@@ -243,6 +278,8 @@ class ChatRequest(BaseModel):
     question: str
     k: int = 15
     chat_uuid: str | None = None   # optional — if omitted, history is not saved
+    document_name: str | None = None  # optional — search only in this document
+    is_strict_mode: bool = False  # if True, strict RAG (only from selected document)
 
 
 class ChatResponse(BaseModel):
@@ -250,6 +287,11 @@ class ChatResponse(BaseModel):
     answer: str
     sources: List[dict]
     suggestions: List[str] = []
+    no_context: bool = False
+    is_generic: bool = False
+
+class CancelRequest(BaseModel):
+    chat_uuid: str
 
 
 class IndexResponse(BaseModel):
@@ -274,7 +316,7 @@ class StatusResponse(BaseModel):
 @app.get("/", tags=["System"])
 async def root():
     return {
-        "message": "PrivateGPT Backend API is running!",
+        "message": "MyAIAssistant Backend API is running!",
         "docs": "/docs",
         "health": "/health",
         "status": "/status"
@@ -434,6 +476,8 @@ async def get_download_progress(model_name: str):
     return {"model": model_name, "status": "unknown", "progress": 0}
 
 
+
+
 @app.get("/ollama/pull-stream", tags=["System"])
 async def pull_model_stream(model_name: str):
     """
@@ -480,21 +524,31 @@ async def update_ollama_settings(chat_model: str | None = None, embedding_model:
     }
 
 
+@app.post("/chat/cancel", tags=["RAG"])
+async def cancel_chat(request: CancelRequest):
+    from rag_chain import CANCELLED_CHATS
+    if request.chat_uuid:
+        CANCELLED_CHATS.add(request.chat_uuid)
+    return {"message": "Cancellation registered."}
+
 @app.post("/chat", response_model=ChatResponse, tags=["RAG"])
-async def chat(request: ChatRequest):
-    if collection_count() == 0:
-        raise HTTPException(
-            status_code=400,
-            detail="No documents indexed yet. Upload documents and call POST /index first.",
-        )
+def chat(request: ChatRequest):
+    # Allow chat even with no documents for generic/social questions.
+    # The RAG chain will handle the no-documents case gracefully.
+    from rag_chain import current_chat_uuid, CANCELLED_CHATS
+    if request.chat_uuid:
+        current_chat_uuid.set(request.chat_uuid)
+        if request.chat_uuid in CANCELLED_CHATS:
+            CANCELLED_CHATS.remove(request.chat_uuid)
+            
     try:
-        result = ask(request.question, k=request.k)
+        result = ask(request.question, k=request.k, document_name=request.document_name, is_strict_mode=request.is_strict_mode)
         answer = result["answer"]
         sources = result["sources"]
 
         # ── Persist to PostgreSQL if chat_uuid provided ──────────────
         cid = request.chat_uuid
-        if cid and db.is_available():
+        if cid and db.is_available() and not result.get("is_generic", False):
             # Ensure session row exists (title = first user message)
             ch.create_session(cid, ch.make_title(request.question))
             ch.save_message(cid, "user", request.question)
@@ -506,14 +560,19 @@ async def chat(request: ChatRequest):
             answer=answer,
             sources=sources,
             suggestions=result.get("suggestions", []),
+            no_context=result.get("no_context", False),
+            is_generic=result.get("is_generic", False),
         )
     except Exception as exc:
         logger.exception("Error during RAG chain execution")
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+    finally:
+        if request.chat_uuid and request.chat_uuid in CANCELLED_CHATS:
+            CANCELLED_CHATS.remove(request.chat_uuid)
 
 
 @app.post("/index", response_model=IndexResponse, tags=["Indexing"])
-async def reindex(reset: bool = False, background_tasks: BackgroundTasks = None):
+def reindex(reset: bool = False, background_tasks: BackgroundTasks = None):
     """
     Trigger (re-)indexing of the documents folder.
     Pass ?reset=true to wipe the collection before indexing.
@@ -532,7 +591,7 @@ async def reindex(reset: bool = False, background_tasks: BackgroundTasks = None)
 
 
 @app.delete("/index", tags=["Indexing"])
-async def clear_index():
+def clear_index():
     """Wipe the entire vector collection."""
     try:
         clear_collection()
@@ -543,84 +602,247 @@ async def clear_index():
 
 
 @app.post("/upload", tags=["Indexing"])
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(request: Request):
     """
-    Upload a document file (.pdf, .docx, .txt, .md, .csv) to the
-    documents folder. The file watcher will auto-index it; you can also
-    call POST /index manually.
+    Upload one or more document files into the documents folder and queue them
+    for background indexing.
     """
-    allowed = {".pdf", ".docx", ".txt", ".md", ".csv"}
-    ext = Path(file.filename).suffix.lower()
-    if ext not in allowed:
+    form = await request.form()
+    uploads: list[UploadFile] = []
+
+    for form_file in form.getlist("files"):
+        if getattr(form_file, "filename", None) and hasattr(form_file, "file"):
+            uploads.append(form_file)
+
+    legacy_file = form.get("file")
+    if getattr(legacy_file, "filename", None) and hasattr(legacy_file, "file"):
+        uploads.append(legacy_file)
+
+    if not uploads:
+        raise HTTPException(status_code=400, detail="No file provided.")
+
+    allowed = set(SUPPORTED_EXTENSIONS)
+    docs_dir = Path(settings.DOCUMENTS_DIR)
+    docs_dir.mkdir(parents=True, exist_ok=True)
+
+    accepted_files = []
+    rejected_files = []
+
+    for upload in uploads:
+        safe_name = os.path.basename(upload.filename or "").strip()
+        ext = Path(safe_name).suffix.lower()
+
+        if not safe_name:
+            rejected_files.append({"filename": upload.filename or "", "reason": "Empty filename."})
+            try:
+                upload.file.close()
+            except Exception:
+                pass
+            continue
+
+        if ext not in allowed:
+            rejected_files.append(
+                {
+                    "filename": safe_name,
+                    "reason": f"Unsupported file type '{ext}'. Allowed: {sorted(allowed)}",
+                }
+            )
+            try:
+                upload.file.close()
+            except Exception:
+                pass
+            continue
+
+        dest = docs_dir / safe_name
+
+        try:
+            with dest.open("wb") as destination_file:
+                shutil.copyfileobj(upload.file, destination_file)
+
+            register_uploaded_file(str(dest))
+            schedule_index_file(str(dest))
+            accepted_files.append(
+                {
+                    "filename": safe_name,
+                    "path": str(dest),
+                    "status": "queued",
+                    "type": ext.lstrip("."),
+                    "size_bytes": dest.stat().st_size,
+                }
+            )
+            logger.info("Uploaded and queued: %s", dest)
+        except Exception as exc:
+            logger.error("Upload failed for %s: %s", safe_name, exc)
+            rejected_files.append({"filename": safe_name, "reason": str(exc)})
+        finally:
+            try:
+                upload.file.close()
+            except Exception:
+                pass
+
+    if not accepted_files:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported file type '{ext}'. Allowed: {allowed}",
+            detail={
+                "message": "No files were uploaded.",
+                "rejected_files": rejected_files,
+            },
         )
 
-    dest = Path(settings.DOCUMENTS_DIR) / file.filename
-    dest.parent.mkdir(parents=True, exist_ok=True)
-
-    try:
-        with dest.open("wb") as f:
-            shutil.copyfileobj(file.file, f)
-        logger.info("Uploaded: %s", dest)
-        
-        # Immediately index the uploaded file
-        from indexer import _index_single_file
-        _index_single_file(str(dest))
-        
-    except Exception as exc:
-        logger.error("Upload/Index failed for %s: %s", file.filename, exc)
-        raise HTTPException(status_code=500, detail=f"Failed to process file: {exc}")
-    finally:
-        file.file.close()
-
     return {
-        "message": f"File '{file.filename}' uploaded and indexed successfully.",
-        "path": str(dest),
+        "message": f"Queued {len(accepted_files)} file(s) for indexing.",
+        "accepted_files": accepted_files,
+        "rejected_files": rejected_files,
         "total_vectors": collection_count(),
     }
 
 
 @app.get("/documents", tags=["Indexing"])
 async def list_documents():
-    """List all files currently in the documents folder."""
-    folder = Path(settings.DOCUMENTS_DIR)
-    if not folder.exists():
-        return {"documents": []}
-    files = [
-        {"filename": f.name, "size_bytes": f.stat().st_size, "type": f.suffix.lstrip(".")}
-        for f in folder.rglob("*")
-        if f.is_file()
-    ]
+    """List uploaded and indexed files, including current indexing state."""
+    import sqlite3
+    import json
+    from vector_store import _get_db_path
+
+    documents_by_name = {}
+    docs_dir = Path(settings.DOCUMENTS_DIR)
+    supported = set(SUPPORTED_EXTENSIONS)
+    indexed_files = set()
+    status_map = get_file_statuses()
+
+    try:
+        conn = sqlite3.connect(_get_db_path())
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT metadata FROM documents")
+        metadatas = cursor.fetchall()
+
+        for meta_tuple in metadatas:
+            try:
+                meta = json.loads(meta_tuple[0])
+                if "filename" in meta:
+                    indexed_files.add(meta["filename"])
+            except (json.JSONDecodeError, KeyError):
+                continue
+        conn.close()
+    except Exception as e:
+        logger.error(f"Error listing indexed documents: {e}")
+
+    if docs_dir.exists():
+        for file_path in docs_dir.rglob("*"):
+            if not file_path.is_file() or file_path.suffix.lower() not in supported:
+                continue
+
+            existing_status = status_map.get(file_path.name, {})
+            status = existing_status.get("status", "indexed" if file_path.name in indexed_files else "uploaded")
+            documents_by_name[file_path.name] = {
+                "filename": file_path.name,
+                "size_bytes": file_path.stat().st_size,
+                "type": file_path.suffix.lstrip("."),
+                "status": status,
+                "error": existing_status.get("error"),
+                "updated_at": existing_status.get("updated_at"),
+                "chunks_indexed": existing_status.get("chunks_indexed"),
+            }
+
+    for filename, state in status_map.items():
+        existing = documents_by_name.get(filename, {})
+        documents_by_name[filename] = {
+            "filename": filename,
+            "size_bytes": existing.get("size_bytes", state.get("size_bytes", 0)),
+            "type": existing.get("type", state.get("type", Path(filename).suffix.lstrip("."))),
+            "status": state.get("status", existing.get("status", "uploaded")),
+            "error": state.get("error"),
+            "updated_at": state.get("updated_at"),
+            "chunks_indexed": state.get("chunks_indexed"),
+        }
+
+    for filename in indexed_files:
+        if filename not in documents_by_name:
+            documents_by_name[filename] = {
+                "filename": filename,
+                "size_bytes": 0,
+                "type": Path(filename).suffix.lstrip(".") or "unknown",
+                "status": "indexed_only",
+                "error": None,
+                "updated_at": None,
+                "chunks_indexed": None,
+            }
+
+    files = [documents_by_name[name] for name in sorted(documents_by_name)]
     return {"documents": files, "count": len(files)}
 
 
 # ---------------------------------------------------------------------------
-@app.delete("/documents/{filename}", tags=["Index"])
+@app.delete("/documents/{filename:path}", tags=["Indexing"])
 async def delete_document(filename: str):
     """Delete a document file and its associated vectors."""
+    # URL decode the filename (handles spaces and special characters)
+    from urllib.parse import unquote
+    filename = unquote(filename)
+    filename = os.path.basename(filename)
     doc_path = Path(settings.DOCUMENTS_DIR) / filename
     
-    # Check if file exists
-    if not doc_path.exists():
-        # Even if file is gone, try to clear vectors (maybe it was deleted manually)
-        vectors_deleted = delete_by_filename(filename)
-        if vectors_deleted > 0:
-            return {"message": f"Associated {vectors_deleted} vectors deleted for {filename}."}
-        raise HTTPException(status_code=404, detail="Document not found.")
-
-    try:
-        # 1. Delete the physical file
-        os.remove(doc_path)
-        # 2. Delete the vectors from the store
-        vectors_deleted = delete_by_filename(filename)
+    logger.info("Attempting to delete document: %s at %s", filename, doc_path)
+    
+    # Always try to delete vectors first
+    vectors_deleted = delete_by_filename(filename)
+    clear_file_status(filename)
+    
+    # Check if file exists on disk
+    file_existed = doc_path.exists()
+    if file_existed:
+        try:
+            os.remove(doc_path)
+            logger.info("Deleted file: %s", doc_path)
+        except Exception as e:
+            logger.error("Error deleting file %s: %s", doc_path, e)
+    
+    # Return appropriate response
+    if vectors_deleted > 0 or file_existed:
         return {
-            "message": f"Successfully deleted {filename} and {vectors_deleted} vector(s)."
+            "message": f"Deleted {filename}",
+            "file_deleted": file_existed,
+            "vectors_deleted": vectors_deleted
         }
-    except Exception as e:
-        logger.error("Error deleting document %s: %s", filename, e)
-        raise HTTPException(status_code=500, detail=str(e))
+    
+    # Nothing was deleted - document not found anywhere
+    raise HTTPException(status_code=404, detail="Document not found.")
+
+
+# ---------------------------------------------------------------------------
+# Debug: Test document filtering
+# ---------------------------------------------------------------------------
+@app.get("/debug/filter-test", tags=["Debug"])
+async def debug_filter_test(query: str, document_name: str | None = None):
+    """Test endpoint to verify document filtering is working.
+    
+    Returns the chunks found for a query with optional document filtering.
+    Useful for debugging why filtering might not be working.
+    """
+    from vector_store import similarity_search
+    
+    logger.info("DEBUG: FilterTest - Query: '%s', Document: %s", query, document_name or "All")
+    
+    docs, scores = similarity_search(query, k=10, document_name=document_name, include_scores=True)
+    
+    results = []
+    for doc, score in zip(docs, scores):
+        results.append({
+            "filename": doc.metadata.get("filename", "unknown"),
+            "relevance_score": round(score, 4),
+            "content_preview": doc.page_content[:200],
+            "metadata": doc.metadata
+        })
+    
+    return {
+        "query": query,
+        "filter_document": document_name,
+        "chunks_found": len(results),
+        "threshold_strict": 0.55,
+        "threshold_flexible": 0.35,
+        "results": results,
+        "note": "Scores >= 0.55 used in strict mode, >= 0.35 in flexible mode"
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -682,3 +904,14 @@ async def delete_chat(chat_uuid: str):
 @app.get("/db-status", tags=["System"])
 async def db_status():
     return {"db_enabled": db.is_available()}
+
+
+# ---------------------------------------------------------------------------
+# Dev entry point — allows: python main.py
+# ---------------------------------------------------------------------------
+if __name__ == "__main__":
+    import uvicorn
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "8000"))
+    logger.info("Starting MyAIAssistant backend on %s:%s", host, port)
+    uvicorn.run(app, host=host, port=port, log_level="info", reload=False)
