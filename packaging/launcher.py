@@ -158,21 +158,10 @@ def ensure_ollama_running() -> bool:
         print("  OK Ollama is already running.")
         return True
 
-    print("  WARN Ollama is not running. Attempting to start it...")
+    print("  WARN Ollama is not running. Attempting to start background server...")
     try:
         if sys.platform == "win32":
             subprocess.Popen(["ollama", "serve"], creationflags=CREATE_NO_WINDOW)
-
-            local_appdata = os.environ.get("LOCALAPPDATA", "")
-            candidate_paths = [
-                Path(local_appdata) / "Ollama" / "ollama app.exe",
-                Path(os.environ.get("ProgramFiles", "C:\\Program Files")) / "Ollama" / "ollama app.exe",
-                Path(local_appdata) / "Programs" / "Ollama" / "ollama app.exe",
-            ]
-            for path in candidate_paths:
-                if path.exists():
-                    subprocess.Popen([str(path)], creationflags=CREATE_NO_WINDOW)
-                    break
 
             if wait_for_http_ok(runtime_config.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434"), timeout=15, path="/api/tags"):
                 print("  OK Ollama started successfully.")
@@ -180,8 +169,10 @@ def ensure_ollama_running() -> bool:
     except Exception as exc:
         print(f"  WARN Could not auto-start Ollama: {exc}")
 
-    print("  WARN Continuing without confirming Ollama. Local model requests may fail until it starts.")
-    return True
+    print("  ERROR Ollama is required but not running.")
+    print("  Please install Ollama from https://ollama.com/download")
+    print("  Then launch it once and re-run MyAIAssistant.")
+    return False
 
 
 def start_backend() -> bool:
@@ -350,7 +341,10 @@ def main() -> None:
     print(f"    Provider: {runtime_config.get('MODEL_PROVIDER', 'ollama')}")
     print("")
 
-    ensure_ollama_running()
+    if not ensure_ollama_running():
+        input("\n  Press Enter to exit...")
+        cleanup()
+        sys.exit(1)
 
     if not start_backend():
         input("\n  Press Enter to exit...")
